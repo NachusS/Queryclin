@@ -1,3 +1,5 @@
+import { RUNTIME_FORMS } from '../generated/mappings.runtime';
+
 export interface FormMapping {
   id: string;
   name: string;
@@ -12,7 +14,7 @@ export interface FormMapping {
   headerAliases?: Record<string, string[]>; // Canonical Header -> [Source Aliases]
 }
 
-export const FORMS: FormMapping[] = [
+const STATIC_FORMS: FormMapping[] = [
   {
     id: 'hce_alg',
     name: 'HCE-ALG',
@@ -332,3 +334,11 @@ export const FORMS: FormMapping[] = [
     }
   }
 ];
+
+export const FORMS: FormMapping[] = (() => {
+  const runtimeMap = new Map((RUNTIME_FORMS || []).map(f => [f.id, f]));
+  const staticMap = new Map(STATIC_FORMS.map(f => [f.id, f]));
+  
+  const merged = new Map([...staticMap, ...runtimeMap]);
+  return Array.from(merged.values());
+})();

@@ -11,11 +11,11 @@ import HCEView from './components/HCEView';
 import Help from './components/Help';
 import Evolution from './components/Evolution';
 import GlobalHeader from './components/GlobalHeader';
-import { AdminRoot } from './admin/AdminRoot';
-import { schemaStore } from './admin/persistence/SchemaStore';
-import { DynamicHCEView } from './admin/renderer/DynamicHCEView';
-import { ClinicalFormSchema } from './admin/domain/types';
+import { AdminRoot } from './admin-studio/AdminRoot';
+import { schemaStore } from './admin-studio/persistence/SchemaStore';
+import { ClinicalFormSchema } from './admin-studio/domain/types';
 import { FORMS } from './core/mappings';
+import { schemaRuntimeSync } from './admin-studio/store/schemaRuntimeSync';
 import pkg from '../package.json';
 
 
@@ -45,6 +45,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 const VERSION = pkg.version;
 const BUILD_DATE = __BUILD_DATE__;
+
+const ADMIN_STUDIO_VERSION = "1.0.0";
+const ADMIN_STUDIO_DATE = "18/05/2026, 12:35";
 
 type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
@@ -142,7 +145,15 @@ export default function App() {
 
 
   const handleFileUpload = async (file: File, formId: string, config?: { fileType: string, delimiter: string }) => {
-    const mapping = FORMS.find(f => f.id === formId);
+    let mapping = FORMS.find(f => f.id === formId);
+    
+    // SSOT: Cargar mapping compilado en runtime desde IndexedDB
+    const runtimeMapping = await schemaRuntimeSync.getRuntimeMapping(formId);
+    if (runtimeMapping) {
+      mapping = runtimeMapping;
+      console.log(`[App] Usando mapping runtime para ${formId}`);
+    }
+
     if (!mapping) {
         alert("Error crítico: Formulario no válido.");
         return;
@@ -390,7 +401,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="h-screen flex flex-col bg-[var(--bg-clinical)] text-[var(--text-primary)] font-sans overflow-hidden">
-        {isAdminMode && <AdminRoot onExit={() => setIsAdminMode(false)} />}
+        {isAdminMode && <AdminRoot onExit={() => setIsAdminMode(false)} version={ADMIN_STUDIO_VERSION} buildDate={ADMIN_STUDIO_DATE} />}
         <GlobalHeader 
           query={query}
           activeFilters={activeFilters}
@@ -495,7 +506,7 @@ export default function App() {
           {view === 'home' && (
             <div className="transition-all duration-500 ease-in-out">
               <Home 
-                onUpload={handleFileUpload} 
+                key={isAdminMode ? 'admin' : 'home'}                onUpload={handleFileUpload} 
                 onSearch={handleSearch} 
                 getSuggestions={(q) => searchEngine.getSuggestions(q)}
                 hasData={!!data || patientCount > 0} 

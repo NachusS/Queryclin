@@ -10,8 +10,9 @@ import { db } from '../storage/indexedDB';
 import { Patient, Toma, getGender } from '../core/types';
 import { FORMS } from '../core/mappings';
 import { parseClinicalDate, extractFecha, extractHora } from '../utils/dateParser';
-import { DynamicSectionRenderer } from '../admin/renderer/DynamicSectionRenderer';
-import { ClinicalFormSchema } from '../admin/domain/types';
+import { DynamicSectionRenderer } from '../admin-studio/renderer/DynamicSectionRenderer';
+import { schemaRuntimeSync } from '../admin-studio/store/schemaRuntimeSync';
+import { ClinicalFormSchema } from '../admin-studio/domain/types';
 import { normalizeString } from '../utils/stringNormalizer';
 
 interface HCEViewProps {
@@ -21,7 +22,7 @@ interface HCEViewProps {
   onBack: () => void;
   onNavigate: (index: number) => void;
   formId: string;
-  activeFilters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[] };
+  activeFilters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean };
   activeTomaIndex: number;
   activeVersionIndex: number;
   onTomaNavigate: (tIdx: number, vIdx: number) => void;
@@ -354,7 +355,7 @@ function TomaTimeline({
     [query]
   );
 
-  const hasMatch = (data: Record<string, string>) => {
+  const hasMatch = (data: Record<string, string | string[]>) => {
     if (queryTokens.length === 0) return false;
     return Object.values(data).some(val => {
       const s = String(val).toLowerCase();
@@ -501,7 +502,7 @@ export default function HCEView({
 
 
   
-  const formMapping = useMemo(() => FORMS.find(f => f.id === formId) || FORMS[0], [formId]);
+  const [formMapping, setFormMapping] = useState<any>(FORMS[0]);
 
   useEffect(() => {
     if (!currentResult) return;
@@ -511,6 +512,16 @@ export default function HCEView({
       setLoading(true);
       try {
         const p = await db.getFromStore(db.stores.patients, currentResult.nhc);
+        
+        // SSOT: Cargar mapping compilado en runtime desde IndexedDB
+        let mapping = FORMS.find(f => f.id === formId);
+        const runtimeMapping = await schemaRuntimeSync.getRuntimeMapping(formId);
+        if (runtimeMapping) {
+          mapping = runtimeMapping;
+          console.log(`[HCEView] Usando mapping runtime para ${formId}`);
+        }
+        setFormMapping(mapping || FORMS[0]);
+
         if (active && p) {
           setPatient(p);
           setLoading(false);
@@ -546,7 +557,7 @@ export default function HCEView({
   const sortedTomas = useMemo(() => {
     if (!patient || !patient.tomas) return [];
     
-    let tomasArray = Object.values(patient.tomas);
+    let tomasArray = Object.values(patient.tomas) as Toma[];
     if (activeFilters?.onlyLatestSnapshot && currentResult?.bestMatchUrl?.idToma) {
       tomasArray = tomasArray.filter(t => t.idToma === currentResult.bestMatchUrl.idToma);
       if (currentResult.bestMatchUrl.ordenToma && currentResult.bestMatchUrl.ordenToma > 0) {
@@ -560,8 +571,8 @@ export default function HCEView({
     return tomasArray.sort((a, b) => {
       const getTime = (t: Toma) => {
         if (!t || !t.latest || !t.latest.data) return 0;
-        const dStr = t.latest.data['EC_Fecha_Toma'] || t.latest.data['FECHA_TOMA'] || '';
-        const hStr = t.latest.data['HORA_TOMA'] || t.latest.data['EC_Hora_Toma'] || '';
+        const dStr = String(t.latest.data['EC_Fecha_Toma'] || t.latest.data['FECHA_TOMA'] || '');
+        const hStr = String(t.latest.data['HORA_TOMA'] || t.latest.data['EC_Hora_Toma'] || '');
         const ts = parseClinicalDate(dStr);
         if (!ts) return 0;
         
@@ -821,7 +832,7 @@ export default function HCEView({
             sortedTomas={sortedTomas}
             activeIndex={activeTomaIndex}
             activeVersionIndex={activeVersionIndex}
-            isHCEALG={formId === 'hce_alg' || formId === 'hce_mir' || formId === 'hce_obs'}
+            isHCEALG={formId.includes('hce_alg') || formId.includes('hce_mir') || formId.includes('hce_obs')}
             query={query}
             onSelect={(tIdx, vIdx) => { 
               onTomaNavigate(tIdx, vIdx); 
@@ -831,7 +842,7 @@ export default function HCEView({
         </aside>
 
         <div className="flex-1 min-w-0 max-w-4xl">
-          {(formId === 'hce_alg' || formId === 'hce_mir' || formId === 'hce_obs') ? (
+          {(formId.includes('hce_alg') || formId.includes('hce_mir') || formId.includes('hce_obs')) ? (
             <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-xl mb-4 shadow-sm overflow-hidden flex flex-col">
               <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 border-b border-[var(--border-clinical)] bg-[#FFF9E5]">
                 <div className="flex items-center gap-2 min-w-[140px]">
@@ -887,7 +898,7 @@ export default function HCEView({
 
           {activeToma ? (
             <>
-              <div className={`flex items-center justify-between mb-4 bg-[var(--surface-clinical)] border border-[var(--accent-clinical)]/20 rounded-2xl px-6 py-4 shadow-sm ${(formId === 'hce_alg' || formId === 'hce_mir' || formId === 'hce_obs') ? 'hidden' : ''}`}>
+              <div className={`flex items-center justify-between mb-4 bg-[var(--surface-clinical)] border border-[var(--accent-clinical)]/20 rounded-2xl px-6 py-4 shadow-sm ${(formId.includes('hce_alg') || formId.includes('hce_mir') || formId.includes('hce_obs')) ? 'hidden' : ''}`}>
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col">
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Toma</span>

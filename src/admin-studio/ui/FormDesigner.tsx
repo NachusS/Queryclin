@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ClinicalFormSchema, ClinicalField, ClinicalGroup, ClinicalSection } from '../domain/types';
-import { schemaStore } from '../persistence/SchemaStore';
+import { FormSchema, Field, Group, Section } from '../domain/schema';
+import { schemaStore } from '../store/SchemaStore';
 import { DndContext, useDraggable, useDroppable, DragEndEvent, DragOverlay, DragStartEvent, closestCenter } from '@dnd-kit/core';
-import { Trash2, Plus, Settings2, Move, Layout, Eye, Search, Columns, ShieldAlert } from 'lucide-react';
+import { Trash2, Plus, Settings2, Move, Layout, Eye, Search, Columns, ShieldAlert, Database, Clock } from 'lucide-react';
+import { TaxonomyPanel } from './TaxonomyPanel';
+import { PreviewPanel } from './PreviewPanel';
+import { VersionSelector } from './VersionSelector';
 
 interface FormDesignerProps {
   schemaId: string;
@@ -12,7 +15,7 @@ interface FormDesignerProps {
 /**
  * Componente para campos en la paleta (izquierda)
  */
-function DraggablePaletteField({ field }: { field: ClinicalField }) {
+function DraggablePaletteField({ field }: { field: Field, key?: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${field.id}`,
     data: { field, source: 'palette' }
@@ -37,7 +40,7 @@ function DraggablePaletteField({ field }: { field: ClinicalField }) {
 /**
  * Componente para campos en el lienzo (centro)
  */
-function DraggableCanvasField({ field, isSelected, onClick }: { field: ClinicalField, isSelected: boolean, onClick: (e: React.MouseEvent) => void }) {
+function DraggableCanvasField({ field, isSelected, onClick }: { field: Field, isSelected: boolean, onClick: (e: React.MouseEvent) => void, key?: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `canvas-${field.id}`,
     data: { field, source: 'canvas' }
@@ -61,7 +64,7 @@ function DraggableCanvasField({ field, isSelected, onClick }: { field: ClinicalF
 /**
  * Área de destino para grupos
  */
-function DroppableGroup({ group, children, isSelected, onClick, onDelete }: { group: ClinicalGroup, children: React.ReactNode, isSelected: boolean, onClick: (e: React.MouseEvent) => void, onDelete: () => void }) {
+function DroppableGroup({ group, children, isSelected, onClick, onDelete }: { group: Group, children: React.ReactNode, isSelected: boolean, onClick: (e: React.MouseEvent) => void, onDelete: () => void, key?: string }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `group-${group.id}`,
     data: { groupId: group.id, type: 'group' }
@@ -122,11 +125,12 @@ function DroppablePalette({ children, isOver }: { children: React.ReactNode, isO
 
 
 export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
-  const [schema, setSchema] = useState<ClinicalFormSchema | null>(null);
-  const [activeField, setActiveField] = useState<ClinicalField | null>(null);
+  const [schema, setSchema] = useState<FormSchema | null>(null);
+  const [activeField, setActiveField] = useState<Field | null>(null);
   const [paletteSearch, setPaletteSearch] = useState("");
   const [selectedElement, setSelectedElement] = useState<{ type: 'field' | 'group' | 'section', id: string, data: any } | null>(null);
   const [isOverPalette, setIsOverPalette] = useState(false);
+  const [activeTab, setActiveTab] = useState<'props' | 'taxonomy' | 'preview' | 'history'>('props');
 
   useEffect(() => {
     loadSchema();
@@ -159,8 +163,13 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
     if (!activeData || !overData) return;
 
     // Clonación profunda solo para D&D para evitar mutaciones directas molestas
-    const newSchema = JSON.parse(JSON.stringify(schema)) as ClinicalFormSchema;
-    const fieldToMove = activeData.field as ClinicalField;
+    const newSchema = JSON.parse(JSON.stringify(schema)) as FormSchema;
+    const fieldToMove = activeData.field as Field;
+    
+    if (!fieldToMove) {
+      console.warn('[FormDesigner] No se encontró el campo a mover en activeData');
+      return;
+    }
 
     // Limpieza previa (si el campo ya estaba en el lienzo, lo quitamos de su grupo anterior)
     if (activeData.source === 'canvas' || (activeData.source === 'palette' && overData.type === 'group')) {
@@ -215,7 +224,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
 
   const handleDeleteGroup = async (sectionId: string, groupId: string) => {
     if (!schema || !window.confirm("¿Deseas eliminar este grupo? Los campos volverán a la paleta.")) return;
-    const newSchema = JSON.parse(JSON.stringify(schema)) as ClinicalFormSchema;
+    const newSchema = JSON.parse(JSON.stringify(schema)) as FormSchema;
     const section = newSchema.sections.find(s => s.id === sectionId);
     if (section) {
       const group = section.groups.find(g => g.id === groupId);
@@ -231,7 +240,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
 
   const handleAddSection = async () => {
     if (!schema) return;
-    const newSection: ClinicalSection = {
+    const newSection: Section = {
       id: `sec-${Date.now()}`,
       title: 'Nueva Sección de Trabajo',
       order: schema.sections.length + 1,
@@ -245,10 +254,10 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
 
   const handleDeleteSection = async (sectionId: string) => {
     if (!schema || !window.confirm("¿Eliminar sección completa? Todos sus campos volverán a la paleta.")) return;
-    const newSchema = JSON.parse(JSON.stringify(schema)) as ClinicalFormSchema;
+    const newSchema = JSON.parse(JSON.stringify(schema)) as FormSchema;
     const section = newSchema.sections.find(s => s.id === sectionId);
     if (section) {
-        const orphanFields: ClinicalField[] = [];
+        const orphanFields: Field[] = [];
         section.groups.forEach(g => orphanFields.push(...g.fields));
         newSchema.unassignedFields = [...(newSchema.unassignedFields || []), ...orphanFields];
         newSchema.sections = newSchema.sections.filter(s => s.id !== sectionId);
@@ -260,8 +269,8 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
 
   const handleResetSchema = async () => {
     if (!schema || !window.confirm("¿Restablecer lienzo? Todos los campos volverán a la paleta y se eliminarán grupos y secciones.")) return;
-    const newSchema = JSON.parse(JSON.stringify(schema)) as ClinicalFormSchema;
-    const allFields: ClinicalField[] = [...(newSchema.unassignedFields || [])];
+    const newSchema = JSON.parse(JSON.stringify(schema)) as FormSchema;
+    const allFields: Field[] = [...(newSchema.unassignedFields || [])];
     newSchema.sections.forEach(section => {
       section.groups.forEach(group => allFields.push(...group.fields));
     });
@@ -289,7 +298,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
 
   const updateElementProperty = async (property: string, value: any) => {
     if (!schema || !selectedElement) return;
-    const newSchema = JSON.parse(JSON.stringify(schema)) as ClinicalFormSchema;
+    const newSchema = JSON.parse(JSON.stringify(schema)) as FormSchema;
     
     if (selectedElement.type === 'field') {
       newSchema.sections.forEach(s => s.groups.forEach(g => {
@@ -328,7 +337,16 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
             </button>
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
-                 <h1 className="text-lg font-black text-[var(--text-primary)] tracking-tight uppercase leading-none">{schema.name}</h1>
+                 <input
+                   type="text"
+                   value={schema.name}
+                   onChange={(e) => setSchema({ ...schema, name: e.target.value })}
+                   onBlur={async () => {
+                     if (schema) await schemaStore.saveSchema(schema);
+                   }}
+                   className="text-lg font-black text-[var(--text-primary)] tracking-tight uppercase leading-none bg-transparent border-b border-transparent hover:border-[var(--border-clinical)] focus:border-[var(--accent-clinical)] focus:outline-none px-1 transition-colors"
+                   title="Haz clic para editar el nombre del formulario"
+                 />
                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${schema.status === 'published' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'} uppercase tracking-widest`}>
                     {schema.status}
                  </span>
@@ -437,9 +455,9 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
                         onClick={(e) => { e.stopPropagation(); setSelectedElement({ type: 'group', id: group.id, data: group }); }}
                         onDelete={() => handleDeleteGroup(section.id, group.id)}
                       >
-                        {group.fields.map(f => (
+                        {group.fields.filter(Boolean).map((f, idx) => (
                           <DraggableCanvasField 
-                            key={f.id} 
+                            key={`${f.id}-${idx}`} 
                             field={f} 
                             isSelected={selectedElement?.id === f.id}
                             onClick={(e) => { e.stopPropagation(); setSelectedElement({ type: 'field', id: f.id, data: f }); }}
@@ -474,126 +492,139 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
 
           {/* Properties Panel */}
           <aside className="w-80 bg-[var(--surface-clinical)] border-l border-[var(--border-clinical)] flex flex-col z-10 shadow-2xl">
-            <div className="p-6 border-b border-[var(--border-clinical)] bg-[var(--bg-clinical)]/50 flex items-center gap-3">
-              <Settings2 size={16} className="text-[var(--accent-clinical)]" />
-              <h2 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-[0.2em]">Panel de Control</h2>
+            <div className="flex border-b border-[var(--border-clinical)] bg-[var(--bg-clinical)]/50 text-[9px] font-black uppercase tracking-widest">
+              <button onClick={() => setActiveTab('props')} className={`flex-1 p-3 text-center ${activeTab === 'props' ? 'bg-[var(--surface-clinical)] text-[var(--accent-clinical)]' : 'text-[var(--text-secondary)] opacity-50'}`}>Propiedades</button>
+              <button onClick={() => setActiveTab('taxonomy')} className={`flex-1 p-3 text-center ${activeTab === 'taxonomy' ? 'bg-[var(--surface-clinical)] text-[var(--accent-clinical)]' : 'text-[var(--text-secondary)] opacity-50'}`}>Taxonomía</button>
+              <button onClick={() => setActiveTab('preview')} className={`flex-1 p-3 text-center ${activeTab === 'preview' ? 'bg-[var(--surface-clinical)] text-[var(--accent-clinical)]' : 'text-[var(--text-secondary)] opacity-50'}`}>Preview</button>
+              <button onClick={() => setActiveTab('history')} className={`flex-1 p-3 text-center ${activeTab === 'history' ? 'bg-[var(--surface-clinical)] text-[var(--accent-clinical)]' : 'text-[var(--text-secondary)] opacity-50'}`}>Historial</button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 hide-scrollbar">
-              {selectedElement ? (
-                <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-right-8 duration-500">
-                  
-                  {/* Visual Header for Property */}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-black text-[var(--accent-clinical)] uppercase tracking-widest opacity-60">Configuración de {selectedElement.type}</span>
-                    <h3 className="text-sm font-black text-[var(--text-primary)] uppercase truncate">{selectedElement.data.label || selectedElement.data.title}</h3>
-                  </div>
+            <div className="flex-1 overflow-y-auto hide-scrollbar">
+              {activeTab === 'props' && (
+                selectedElement ? (
+                  <div className="flex flex-col gap-10 p-6 animate-in fade-in slide-in-from-right-8 duration-500">
+                    
+                    {/* Visual Header for Property */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[8px] font-black text-[var(--accent-clinical)] uppercase tracking-widest opacity-60">Configuración de {selectedElement.type}</span>
+                      <h3 className="text-sm font-black text-[var(--text-primary)] uppercase truncate">{selectedElement.data.label || selectedElement.data.title}</h3>
+                    </div>
 
-                  {/* LABEL / TITLE */}
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">
-                      <Layout size={10} /> Etiqueta Visual
-                    </label>
-                    <input 
-                      type="text" 
-                      value={selectedElement.data.label || selectedElement.data.title || ""} 
-                      onChange={(e) => updateElementProperty(selectedElement.type === 'field' ? 'label' : 'title', e.target.value)}
-                      className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-clinical)]/20 focus:border-[var(--accent-clinical)] outline-none transition-all shadow-inner"
-                    />
-                  </div>
+                    {/* LABEL / TITLE */}
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">
+                        <Layout size={10} /> Etiqueta Visual
+                      </label>
+                      <input 
+                        type="text" 
+                        value={selectedElement.data.label || selectedElement.data.title || ""} 
+                        onChange={(e) => updateElementProperty(selectedElement.type === 'field' ? 'label' : 'title', e.target.value)}
+                        className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-clinical)]/20 focus:border-[var(--accent-clinical)] outline-none transition-all shadow-inner"
+                      />
+                    </div>
 
-                  {selectedElement.type === 'field' && (
-                    <>
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">
-                          <Eye size={10} /> Formato Clínico
-                        </label>
-                        <select 
-                          value={selectedElement.data.type}
-                          onChange={(e) => updateElementProperty('type', e.target.value)}
-                          className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none cursor-pointer hover:border-[var(--accent-clinical)]/50 transition-colors"
-                        >
-                          <option value="text">Input: Texto Corto</option>
-                          <option value="textarea">Narrativa: Área de Texto</option>
-                          <option value="number">Métrica: Numérico</option>
-                          <option value="boolean">Estado: Booleano</option>
-                          <option value="date">Temporal: Fecha</option>
-                          <option value="multivalue">Taxonómico: Multivalor ($)</option>
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 bg-[var(--bg-clinical)]/50 p-6 rounded-[2rem] border border-[var(--border-clinical)]/50">
-                        <label className="flex items-center justify-between cursor-pointer group">
-                          <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest group-hover:text-[var(--text-primary)] transition-colors">Visible en HCE</span>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedElement.data.visible !== false}
-                            onChange={(e) => updateElementProperty('visible', e.target.checked)}
-                            className="w-5 h-5 rounded-lg border-[var(--border-clinical)] text-[var(--accent-clinical)] focus:ring-[var(--accent-clinical)]/20 transition-all cursor-pointer"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between cursor-pointer group">
-                          <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest group-hover:text-[var(--text-primary)] transition-colors">Indexar para Búsqueda</span>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedElement.data.searchable !== false}
-                            onChange={(e) => updateElementProperty('searchable', e.target.checked)}
-                            className="w-5 h-5 rounded-lg border-[var(--border-clinical)] text-[var(--accent-clinical)] focus:ring-[var(--accent-clinical)]/20 transition-all cursor-pointer"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="p-5 bg-slate-900 rounded-3xl border border-white/5 shadow-2xl">
-                        <div className="flex items-center gap-2 mb-3">
-                           <ShieldAlert size={10} className="text-amber-500" />
-                           <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Clinical Data Source</p>
-                        </div>
-                        <code className="text-[10px] text-[var(--accent-clinical)] font-mono break-all font-bold block bg-black/30 p-3 rounded-xl border border-white/5">{selectedElement.data.sourceField}</code>
-                      </div>
-                    </>
-                  )}
-
-                  {selectedElement.type === 'group' && (
-                    <>
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">
-                          <Columns size={10} /> Organización (Layout)
-                        </label>
-                        <select 
-                          value={selectedElement.data.layout}
-                          onChange={(e) => updateElementProperty('layout', e.target.value)}
-                          className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none"
-                        >
-                          <option value="stack">Vertical: Columna única</option>
-                          <option value="grid">Rejilla: Multicolumna</option>
-                        </select>
-                      </div>
-                      {selectedElement.data.layout === 'grid' && (
+                    {selectedElement.type === 'field' && (
+                      <>
                         <div className="space-y-3">
-                          <label className="block text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">Número de Columnas</label>
-                          <input 
-                            type="range" 
-                            min="1" max="4"
-                            value={selectedElement.data.columns || 2} 
-                            onChange={(e) => updateElementProperty('columns', parseInt(e.target.value))}
-                            className="w-full accent-[var(--accent-clinical)]"
-                          />
-                          <div className="flex justify-between text-[9px] font-bold text-[var(--text-secondary)] px-1">
-                             <span>1 Col</span>
-                             <span>2 Col</span>
-                             <span>3 Col</span>
-                             <span>4 Col</span>
-                          </div>
+                          <label className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">
+                            <Eye size={10} /> Formato Clínico
+                          </label>
+                          <select 
+                            value={selectedElement.data.type}
+                            onChange={(e) => updateElementProperty('type', e.target.value)}
+                            className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none cursor-pointer hover:border-[var(--accent-clinical)]/50 transition-colors"
+                          >
+                            <option value="text">Input: Texto Corto</option>
+                            <option value="textarea">Narrativa: Área de Texto</option>
+                            <option value="number">Métrica: Numérico</option>
+                            <option value="boolean">Estado: Booleano</option>
+                            <option value="date">Temporal: Fecha</option>
+                            <option value="multivalue">Taxonómico: Multivalor ($)</option>
+                          </select>
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center text-[var(--text-secondary)] opacity-10 gap-8">
-                  <Settings2 size={64} strokeWidth={1} />
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[180px] leading-relaxed">Selecciona un elemento del lienzo para editar su taxonomía visual</p>
-                </div>
+
+                        <div className="grid grid-cols-1 gap-4 bg-[var(--bg-clinical)]/50 p-6 rounded-[2rem] border border-[var(--border-clinical)]/50">
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest group-hover:text-[var(--text-primary)] transition-colors">Visible en HCE</span>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedElement.data.visible !== false}
+                              onChange={(e) => updateElementProperty('visible', e.target.checked)}
+                              className="w-5 h-5 rounded-lg border-[var(--border-clinical)] text-[var(--accent-clinical)] focus:ring-[var(--accent-clinical)]/20 transition-all cursor-pointer"
+                            />
+                          </label>
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest group-hover:text-[var(--text-primary)] transition-colors">Indexar para Búsqueda</span>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedElement.data.searchable !== false}
+                              onChange={(e) => updateElementProperty('searchable', e.target.checked)}
+                              className="w-5 h-5 rounded-lg border-[var(--border-clinical)] text-[var(--accent-clinical)] focus:ring-[var(--accent-clinical)]/20 transition-all cursor-pointer"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="p-5 bg-slate-900 rounded-3xl border border-white/5 shadow-2xl">
+                          <div className="flex items-center gap-2 mb-3">
+                             <ShieldAlert size={10} className="text-amber-500" />
+                             <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Clinical Data Source</p>
+                          </div>
+                          <code className="text-[10px] text-[var(--accent-clinical)] font-mono break-all font-bold block bg-black/30 p-3 rounded-xl border border-white/5">{selectedElement.data.sourceField}</code>
+                        </div>
+                      </>
+                    )}
+
+                    {selectedElement.type === 'group' && (
+                      <>
+                        <div className="space-y-3">
+                          <label className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">
+                            <Columns size={10} /> Organización (Layout)
+                          </label>
+                          <select 
+                            value={selectedElement.data.layout}
+                            onChange={(e) => updateElementProperty('layout', e.target.value)}
+                            className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none"
+                          >
+                            <option value="stack">Vertical: Columna única</option>
+                            <option value="grid">Rejilla: Multicolumna</option>
+                          </select>
+                        </div>
+                        {selectedElement.data.layout === 'grid' && (
+                          <div className="space-y-3">
+                            <label className="block text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-40">Número de Columnas</label>
+                            <input 
+                              type="range" 
+                              min="1" max="4"
+                              value={selectedElement.data.columns || 2} 
+                              onChange={(e) => updateElementProperty('columns', parseInt(e.target.value))}
+                              className="w-full accent-[var(--accent-clinical)]"
+                            />
+                            <div className="flex justify-between text-[9px] font-bold text-[var(--text-secondary)] px-1">
+                               <span>1 Col</span>
+                               <span>2 Col</span>
+                               <span>3 Col</span>
+                               <span>4 Col</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-[var(--text-secondary)] opacity-10 gap-8">
+                    <Settings2 size={64} strokeWidth={1} />
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[180px] leading-relaxed">Selecciona un elemento del lienzo para editar su taxonomía visual</p>
+                  </div>
+                )
+              )}
+              {activeTab === 'taxonomy' && schema && (
+                <TaxonomyPanel schema={schema} onUpdate={setSchema} />
+              )}
+              {activeTab === 'preview' && schema && (
+                <PreviewPanel schema={schema} />
+              )}
+              {activeTab === 'history' && schema && (
+                <VersionSelector currentSchema={schema} onSelectVersion={setSchema} />
               )}
             </div>
           </aside>

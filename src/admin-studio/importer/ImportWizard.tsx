@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { read, utils } from 'xlsx';
 import { AutoMapper } from '../mapper/AutoMapper';
-import { schemaStore } from '../persistence/SchemaStore';
+import { schemaStore } from '../store/SchemaStore';
 import { ClinicalFormSchema } from '../domain/types';
 
 export function ImportWizard({ onComplete }: { onComplete: (schemaId: string) => void }) {

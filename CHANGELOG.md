@@ -1,3 +1,11 @@
+## [6.5.2] - 2026-05-18
+### Añadido
+- **Cabecera Unificada en Admin Studio**: Rediseño de la cabecera de Admin Studio para alinearse con la estética de Queryclin (Glassmorphism, logo integrado y pastilla de versión con fecha).
+- **Modal de Ayuda**: Añadido modal de ayuda interactivo en Admin Studio para guiar al administrador sobre plantillas, bibliotecas y ciclo de vida.
+
+### Modificado
+- **Gobernanza (RULES.md)**: Actualizadas las reglas 7 y 8 para declarar la inmutabilidad estética de la cabecera de Admin Studio y permitir la excepción de versionado independiente (V1.0.0).
+
 ## [6.5.1] - 2026-05-18
 ### Corregido
 - **Inconsistencia de Filtros de Categoría**: Normalización de categorías y campos en `QueryEngine.ts` para resolver fallos de búsqueda causados por diferencias en acentos y mayúsculas entre el índice y los mappings.

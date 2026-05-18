@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, Upload, ShieldCheck, Database, Zap, Filter, Calendar, Stethoscope } from 'lucide-react';
 import { searchEngine } from '../engine';
 import { FORMS } from '../core/mappings';
 import { normalizeString } from '../utils/stringNormalizer';
+import { schemaRuntimeSync } from '../admin-studio/store/schemaRuntimeSync';
 
 interface HomeProps {
+  key?: string | number;
   hasData: boolean;
   onUpload: (file: File, formId: string, config?: any) => void;
   onSearch: (query: string, filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }) => void;
@@ -74,6 +76,27 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
   const [ingestionConfig, setIngestionConfig] = useState({
     fileType: 'auto'
   });
+  
+  const [availableForms, setAvailableForms] = useState<any[]>(FORMS);
+
+  useEffect(() => {
+    loadDynamicForms();
+  }, []);
+
+  const loadDynamicForms = async () => {
+    console.log('[Home] Cargando formularios dinámicos...');
+    const dynamicForms = await schemaRuntimeSync.getAllRuntimeMappings();
+    console.log('[Home] Formularios dinámicos encontrados:', dynamicForms);
+    if (dynamicForms.length > 0) {
+      const dynamicIds = new Set(dynamicForms.map(f => f.id));
+      const filteredStatic = FORMS.filter(f => !dynamicIds.has(f.id));
+      const merged = [...filteredStatic, ...dynamicForms];
+      console.log('[Home] Lista final de formularios:', merged);
+      setAvailableForms(merged);
+    } else {
+      console.log('[Home] No se encontraron formularios dinámicos, usando estáticos.');
+    }
+  };
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,7 +140,7 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
                   className="w-full pl-10 pr-4 py-4 bg-[var(--bg-clinical)] border-2 border-[var(--border-clinical)] rounded-xl focus:border-[var(--accent-clinical)] focus:outline-none transition-all text-sm font-bold text-[var(--text-primary)] cursor-pointer"
                 >
                   <option value="" disabled>-- Elegir especialidad --</option>
-                  {FORMS.map(f => (
+                  {availableForms.map(f => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}
                 </select>

@@ -254,5 +254,13 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **T5. Pruebas de Estrés Operativo**: Creado `stress.test.ts` y validada la estabilidad con 10k pacientes.
 - [Logro]: Queryclin V6.5 queda consolidado como un sistema estable, determinista y listo para producción, libre de regresiones críticas.
 
+## 🚀 FASE 32: Admin Studio UI/UX & Governance Hardening (V6.5.2 — ACTUAL 🚀)
+- [x] **A53. Cabecera Unificada**: Rediseño de la cabecera de Admin Studio con Glassmorphism y logo integrado.
+- [x] **A54. Modal de Ayuda**: Añadido modal de ayuda interactivo sobre plantillas y biblioteca.
+- [x] **A55. Nombre Personalizable**: Permitido editar el nombre del formulario en el diseñador.
+- [x] **A56. Sistema de Versiones**: Añadido botón para crear nuevas versiones en el historial.
+- [x] **A57. Normalización de Reglas**: Actualizado `RULES.md` para estandarizar el versionado y cabeceras.
+- [Logro]: Se consolida la experiencia de usuario en Admin Studio y se flexibiliza el sistema de versiones bajo una misma norma visual.
+
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*
