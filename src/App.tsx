@@ -203,7 +203,7 @@ export default function App() {
         csvText: text, 
         mapping, 
         strictMode: false,
-        delimiter: config?.delimiter || '|',
+        delimiter: file.name.toLowerCase().endsWith('.xlsx') ? '|' : config?.delimiter,
         source_file: file.name,
         ingest_timestamp: new Date().toISOString()
       });

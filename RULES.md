@@ -38,4 +38,4 @@ Este documento contiene las directrices fundamentales e inviolables para el desa
 - **Fuente de Verdad:** La versión oficial siempre será la definida en `package.json`.
 
 ---
-*Gobernanza Queryclin - V6.4.0*
+*Gobernanza Queryclin - V6.5.1*

@@ -1,5 +1,6 @@
 import { HCEData, Patient } from '../core/types';
 import { indexerService } from './IndexerService';
+import { FormMapping } from '../core/mappings';
 import { queryEngine, SearchResult } from './QueryEngine';
 
 export type { SearchResult };
@@ -27,8 +28,8 @@ class SearchEngineFacade {
     indexerService.startIndexing();
   }
 
-  async indexPatient(nhc: string, patient: Patient, isSampling: boolean) {
-    await indexerService.indexPatient(nhc, patient, isSampling);
+  async indexPatient(nhc: string, patient: Patient, isSampling: boolean, mapping?: FormMapping) {
+    await indexerService.indexPatient(nhc, patient, isSampling, mapping);
   }
 
   async flushIndexIfNeeded() {

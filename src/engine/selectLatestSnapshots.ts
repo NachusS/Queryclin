@@ -1,4 +1,4 @@
-export function selectLatestSnapshots<T extends { nhc: string; date?: number; ordenToma?: number }>(
+export function selectLatestSnapshots<T extends { nhc: string; date?: number; idToma?: string; ordenToma?: number }>(
   records: T[]
 ): T[] {
   if (!records || records.length === 0) return [];
@@ -24,11 +24,18 @@ export function selectLatestSnapshots<T extends { nhc: string; date?: number; or
     if (currentDate > existingDate) {
       snapshotMap.set(nhc, currentRecord);
     } else if (currentDate === existingDate) {
-      const currentOrder = Number(currentRecord.ordenToma) || 0;
-      const existingOrder = Number(existingRecord.ordenToma) || 0;
+      const currentId = currentRecord.idToma || '';
+      const existingId = existingRecord.idToma || '';
 
-      if (currentOrder > existingOrder) {
+      if (currentId > existingId) {
         snapshotMap.set(nhc, currentRecord);
+      } else if (currentId === existingId) {
+        const currentOrder = Number(currentRecord.ordenToma) || 0;
+        const existingOrder = Number(existingRecord.ordenToma) || 0;
+
+        if (currentOrder > existingOrder) {
+          snapshotMap.set(nhc, currentRecord);
+        }
       }
     }
   }

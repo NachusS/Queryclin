@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { selectLatestSnapshots } from './selectLatestSnapshots';
 
 describe('selectLatestSnapshots', () => {
@@ -21,6 +22,16 @@ describe('selectLatestSnapshots', () => {
     const result = selectLatestSnapshots(records);
     expect(result.length).toBe(1);
     expect(result[0].ordenToma).toBe(2);
+  });
+
+  it('should use idToma as a tie-breaker before Orden_Toma', () => {
+    const records = [
+      { nhc: '1', date: 2000, idToma: 'T1', ordenToma: 2 },
+      { nhc: '1', date: 2000, idToma: 'T2', ordenToma: 1 }
+    ];
+    const result = selectLatestSnapshots(records);
+    expect(result.length).toBe(1);
+    expect(result[0].idToma).toBe('T2');
   });
 
   it('should handle missing or invalid dates gracefully', () => {

@@ -3,6 +3,7 @@ import { CLINICAL_SYNONYMS, STEM_WHITELIST } from './clinicalSynonyms';
 import { db } from '../storage/indexedDB';
 import { SemanticProcessor } from './SemanticProcessor';
 import { selectLatestSnapshots } from './selectLatestSnapshots';
+import { normalizeString } from '../utils/stringNormalizer';
 
 // ============================================================
 // OKAPI BM25 — Parámetros de ajuste (V3.9.0)
@@ -235,15 +236,18 @@ export class QueryEngine {
           
           let hasStructuralMatch = true;
           if (filters?.categories && filters.categories.length > 0) {
-             const requestedCats = filters.categories.map(c => c.toUpperCase().replace(/^\d{2}-/, '').trim());
-             const hasMatch = requestedCats.some(req => docCategories.some(dc => dc.includes(req) || req.includes(dc)));
+             const requestedCats = filters.categories.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim());
+             const hasMatch = requestedCats.some(req => docCategories.some(dc => {
+               const cleanDC = normalizeString(dc).replace(/^\d{2}-/, '').trim();
+               return cleanDC.includes(req) || req.includes(cleanDC);
+             }));
              if (!hasMatch) hasStructuralMatch = false;
           }
           if (filters?.fields && filters.fields.length > 0) {
-             const requestedFields = filters.fields.map(f => f.toUpperCase().replace(/^EC_/, '').replace(/_/g, ' ').trim());
+             const requestedFields = filters.fields.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim());
              const hasMatch = requestedFields.some(req => docCategories.some(dc => {
-               const cleanDC = dc.toUpperCase().replace(/^EC_/, '').replace(/_/g, ' ').trim();
-               return cleanDC === req || dc === req;
+               const cleanDC = normalizeString(dc).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+               return cleanDC === req || normalizeString(dc) === req;
              }));
              if (!hasMatch) hasStructuralMatch = false;
           }

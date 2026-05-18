@@ -158,7 +158,7 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file && selectedFormId) {
-                    onUpload(file, selectedFormId, { ...ingestionConfig, delimiter: '|' });
+                    onUpload(file, selectedFormId, { ...ingestionConfig });
                     if (fileInputRef.current) fileInputRef.current.value = '';
                   }
                 }}

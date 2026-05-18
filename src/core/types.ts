@@ -1,5 +1,5 @@
-interface ClinicalRecord {
-  [key: string]: string;
+export interface ClinicalRecord {
+  [key: string]: string | string[];
 }
 
 export interface RegistroToma {
@@ -44,7 +44,8 @@ export function getGender(demographics: ClinicalRecord): 'male' | 'female' | 'ne
 
   if (!genderKey) return 'neutral';
   
-  const val = demographics[genderKey].toUpperCase().trim();
+  const valRaw = demographics[genderKey];
+  const val = (Array.isArray(valRaw) ? valRaw.join(' ') : valRaw).toUpperCase().trim();
   if (['H', 'V', 'HOMBRE', 'VARON', 'VARÓN', 'MALE'].some(v => val.includes(v))) return 'male';
   if (['M', 'MUJER', 'FEMALE', 'HEMBRA'].some(v => val.includes(v))) return 'female';
   

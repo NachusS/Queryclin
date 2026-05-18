@@ -1,5 +1,6 @@
 import { HCEData, Patient } from '../core/types';
 import { db } from '../storage/indexedDB';
+import { FormMapping } from '../core/mappings';
 import { parseClinicalDate } from '../utils/dateParser';
 import { SemanticProcessor } from './SemanticProcessor';
 
@@ -29,7 +30,7 @@ export class IndexerService {
     console.log('[IndexerService] Preparado para indexación incremental.');
   }
 
-  public async indexPatient(nhc: string, patient: Patient, isSampling: boolean) {
+  public async indexPatient(nhc: string, patient: Patient, isSampling: boolean, mapping?: FormMapping) {
     this.negTokenCache = Object.create(null); // Reset cache per patient for efficiency
     const skeleton: any = { 
       nhc: patient.nhc, 
@@ -94,12 +95,25 @@ export class IndexerService {
 
            // Detectar categoría visual para el filtro estructural
            let categoryStr = 'OTROS';
-           const upperKey = key.toUpperCase();
-           if (upperKey.includes('ANTECEDENTE') || upperKey.includes('HÁBITO') || upperKey.includes('HABITO') || upperKey.includes('ALERGIA')) categoryStr = 'ANTECEDENTES';
-           else if (upperKey.includes('EXPLORACI') || upperKey.includes('ANAMNESIS') || upperKey.includes('CONSTANTES') || upperKey.includes('FC') || upperKey.includes('TALLA') || upperKey.includes('PESO')) categoryStr = 'ANAMNESIS Y EXPLORACION';
-           else if (upperKey.includes('DIAGNÓSTICO') || upperKey.includes('DIAGNOSTICO') || upperKey.includes('TRATAMIENTO') || upperKey.includes('TTO') || upperKey.includes('RECOMENDACIONES')) categoryStr = 'DIAGNOSTICO Y TTO';
-           else if (upperKey.includes('RESULTADO') || upperKey.includes('PRUEBA') || upperKey.includes('ANALITICA') || upperKey.includes('ECOGRAFIA')) categoryStr = 'RESULTADOS PRUEBAS';
-           else if (upperKey.includes('INGRESO') || upperKey.includes('ALTA') || upperKey.includes('EVOLUCI') || upperKey.includes('HOSPITAL')) categoryStr = 'PROCESO HOSP/CEX';
+           
+           if (mapping && mapping.visualCategories) {
+             for (const [cat, fields] of Object.entries(mapping.visualCategories)) {
+               if (fields.includes(key)) {
+                 categoryStr = cat;
+                 break;
+               }
+             }
+           }
+           
+           if (categoryStr === 'OTROS') {
+             // Fallback to heuristics if not found in mapping or no mapping provided
+             const upperKey = key.toUpperCase();
+             if (upperKey.includes('ANTECEDENTE') || upperKey.includes('HÁBITO') || upperKey.includes('HABITO') || upperKey.includes('ALERGIA')) categoryStr = 'ANTECEDENTES';
+             else if (upperKey.includes('EXPLORACI') || upperKey.includes('ANAMNESIS') || upperKey.includes('CONSTANTES') || upperKey.includes('FC') || upperKey.includes('TALLA') || upperKey.includes('PESO')) categoryStr = 'ANAMNESIS Y EXPLORACION';
+             else if (upperKey.includes('DIAGNÓSTICO') || upperKey.includes('DIAGNOSTICO') || upperKey.includes('TRATAMIENTO') || upperKey.includes('TTO') || upperKey.includes('RECOMENDACIONES')) categoryStr = 'DIAGNOSTICO Y TTO';
+             else if (upperKey.includes('RESULTADO') || upperKey.includes('PRUEBA') || upperKey.includes('ANALITICA') || upperKey.includes('ECOGRAFIA')) categoryStr = 'RESULTADOS PRUEBAS';
+             else if (upperKey.includes('INGRESO') || upperKey.includes('ALTA') || upperKey.includes('EVOLUCI') || upperKey.includes('HOSPITAL')) categoryStr = 'PROCESO HOSP/CEX';
+           }
 
            let textToTokenize = String(value);
            const valStr = textToTokenize.toLowerCase().trim();

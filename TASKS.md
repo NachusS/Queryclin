@@ -235,7 +235,7 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **T3. Batería de Pruebas**: Generación de test cases exhaustivos para validación continua.
 - [x] **Logro**: Sistema certificado como estable, rápido y libre de redundancias críticas tras auditoría completa.
 
-## 🚀 FASE 30: Admin Studio Precision & Resource Integration (V6.5.0 — ACTUAL 🚀)
+## 🚀 FASE 30: Admin Studio Precision & Resource Integration (V6.5.0)
 - [x] **A44. Biblioteca de Recursos Canónicos**: Integración de cabeceras oficiales OBS, MIR y ALG como bases inmutables.
 - [x] **A45. Motor de Generación con "Orphans"**: Refactor de `TemplateGenerator` para evitar la pérdida de campos no categorizados.
 - [x] **U38. CRUD Estructural de Formulario**: Implementada capacidad de añadir/eliminar secciones y grupos en tiempo real.
@@ -243,6 +243,16 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **A46. Sincronización de Protocolos**: Actualización de la capa de seguridad y metadatos a la V6.5.0.
 - [ ] **A47. Validación de Persistencia Atómica**: Pruebas de integridad en IndexedDB tras cambios estructurales masivos.
 - [Logro]: El Admin Studio alcanza la madurez operativa, permitiendo la creación de formularios desde cero o plantillas con precisión del 100%.
+
+## 🚀 FASE 31: Consolidación y Protocolo de Congelación (V6.5.1 — ACTUAL 🚀)
+- [x] **A48. Consistencia de Filtros**: Normalización de categorías y campos en `QueryEngine.ts` para resolver fallos por acentos.
+- [x] **A49. Detección de Delimitadores**: Eliminado el forzado del delimitador `|` en `Home.tsx`.
+- [x] **A50. Categorización por Mapping**: Actualizado `IndexerService.ts` para usar `visualCategories`.
+- [x] **A51. Consistencia de Snapshots**: Alineada la lógica de desempate en `selectLatestSnapshots.ts` con `QueryEngine.ts` usando `idToma`.
+- [x] **A52. Endurecimiento Multivalor (OBS)**: Fusión de registros duplicados en arrays de strings en `csv.worker.ts`.
+- [x] **T4. Suite de Pruebas de Filtros y Multivalor**: Creados `QueryEngine.filters.test.ts` y `Multivalue.test.ts`.
+- [x] **T5. Pruebas de Estrés Operativo**: Creado `stress.test.ts` y validada la estabilidad con 10k pacientes.
+- [Logro]: Queryclin V6.5 queda consolidado como un sistema estable, determinista y listo para producción, libre de regresiones críticas.
 
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*

@@ -1,3 +1,16 @@
+## [6.5.1] - 2026-05-18
+### Corregido
+- **Inconsistencia de Filtros de Categoría**: Normalización de categorías y campos en `QueryEngine.ts` para resolver fallos de búsqueda causados por diferencias en acentos y mayúsculas entre el índice y los mappings.
+- **Detección de Delimitadores**: Eliminado el forzado del delimitador `|` en `Home.tsx` para permitir que el worker detecte automáticamente el delimitador correcto en archivos CSV/TXT subidos.
+- **Categorización por Mapping**: Actualizado `IndexerService.ts` para que utilice las categorías definidas en `visualCategories` del mapping del formulario activo (si está disponible) en lugar de depender únicamente de heurísticas. Esto resuelve el problema de "category drift".
+- **Consistencia de Snapshots**: Actualizado `selectLatestSnapshots.ts` para que utilice `idToma` como criterio de desempate antes de `ordenToma` when las fechas son iguales, alineando su lógica con `QueryEngine.ts`.
+- **Endurecimiento Multivalor (OBS)**: Modificada la lógica de ingesta en `csv.worker.ts` para que, en lugar de duplicar registros con el mismo `ordenToma`, fusione los campos en arrays de strings. Esto evita la fragmentación visual y permite que `HCEView` los renderice como listas coherentes.
+
+### Añadido
+- **Pruebas de Coherencia de Filtros**: Creado `QueryEngine.filters.test.ts` con 6 nuevas pruebas para validar el comportamiento determinista de los filtros de categoría, campo, fechas y operadores booleanos combinados.
+- **Prueba de Desempate de Snapshots**: Añadida una prueba en `selectLatestSnapshots.test.ts` para verificar el desempate por `idToma`.
+- **Pruebas de Multivalor**: Creado `Multivalue.test.ts` para validar la indexación, búsqueda y fusión de campos multivalor con `$`.
+
 ## [6.5.0] - 2026-05-15
 ### Añadido
 - **Biblioteca de Recursos Clínicos**: Integración de cabeceras canónicas para OBS, MIR y ALG en el Admin Studio.

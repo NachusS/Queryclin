@@ -25,8 +25,15 @@ self.onmessage = async (e: MessageEvent) => {
     
     searchEngine.startIndexing();
 
+    // Calcular el total de líneas para el progreso (sin cargar en memoria arrays masivos)
+    let estimatedTotal = 0;
+    for (let i = 0; i < csvText.length; i++) {
+      if (csvText[i] === '\n') estimatedTotal++;
+    }
+    if (csvText.length > 0 && csvText[csvText.length - 1] !== '\n') estimatedTotal++;
+    if (estimatedTotal > 0) estimatedTotal--; // Restar la cabecera
+
     const stream = streamCSV(csvText, delimiter);
-    let estimatedTotal = 0; // Se calculará de forma fluida o se usará como relativo
 
     for (const record of stream) {
       if (totalProcessed === 0) {
@@ -202,12 +209,27 @@ async function processBatch(records: any[], currentTotal: number, mapping: FormM
       }
     }
     
-    const exists = batchPatients[nhc].tomas[idToma].registros.some(r => r.ordenToma === ordenToma);
-    if (exists) {
-      // Duplicado detectado: No bloquear ingesta, marcar registro y advertir.
-      self.postMessage({ type: 'debug_warn', logs: [`Duplicado detectado en NHC ${nhc}, Toma ${idToma}, Orden ${ordenToma}`] });
-      record._is_duplicate = true;
-      batchPatients[nhc].tomas[idToma].registros.push({ ordenToma, data: record });
+    const existingRecord = batchPatients[nhc].tomas[idToma].registros.find(r => r.ordenToma === ordenToma);
+    if (existingRecord) {
+      // Duplicado detectado: En lugar de duplicar la vista, fusionamos los campos (Multivalue Hardening)
+      self.postMessage({ type: 'debug_warn', logs: [`Fusionando datos duplicados en NHC ${nhc}, Toma ${idToma}, Orden ${ordenToma}`] });
+      
+      for (const [key, value] of Object.entries(record)) {
+        if (value === null || value === undefined || String(value).trim() === '') continue;
+        
+        if (existingRecord.data[key]) {
+          const existingVal = existingRecord.data[key];
+          if (Array.isArray(existingVal)) {
+            if (!existingVal.includes(String(value))) {
+              existingVal.push(String(value));
+            }
+          } else if (existingVal !== String(value)) {
+            existingRecord.data[key] = [String(existingVal), String(value)];
+          }
+        } else {
+          existingRecord.data[key] = value as any;
+        }
+      }
     } else {
       batchPatients[nhc].tomas[idToma].registros.push({ ordenToma, data: record });
     }
@@ -215,7 +237,7 @@ async function processBatch(records: any[], currentTotal: number, mapping: FormM
 
   for (const nhc of batchNhcs) {
     if (batchPatients[nhc]) {
-      await searchEngine.indexPatient(nhc, batchPatients[nhc], currentTotal < 20000);
+      await searchEngine.indexPatient(nhc, batchPatients[nhc], currentTotal < 20000, mapping);
     }
   }
 

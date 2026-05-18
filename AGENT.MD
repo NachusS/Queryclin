@@ -1,4 +1,4 @@
-# Agent Context: Queryclin (V6.5.0) 🚀
+# Agent Context: Queryclin (V6.5.1) 🚀
 
 ## 🎯 Project Goal
 Build a professional, private, Local-First clinical search engine capable of handling 100,000+ records (HCE) with millisecond response times. Now featuring a specialized **Admin Studio** for declarative clinical form design and high-precision taxonomy control.
@@ -16,7 +16,7 @@ The project has evolved from a static viewer to a dynamic design platform:
 - **Storage**: IndexedDB (Sharded for >100k records) + SchemaStore for Admin UI.
 - **Engine**: BM25 Scoring + Contextual Indexing + Clinical Semantic Layer.
 - **UX/UI**: Premium Glassmorphism, Drag-and-Drop (dnd-kit), and Micro-animations.
-- **Security**: Security Protocol v6.5.0, Local-First, Passcode Protected Admin.
+- **Security**: Security Protocol v6.5.1, Local-First, Passcode Protected Admin.
 
 ## ⚔️ Battle Log (Latest Challenges)
 - **Field Loss Prevention**: Engineering the `TemplateGenerator` to handle "orphan" fields during schema generation.

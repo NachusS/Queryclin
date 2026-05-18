@@ -31,4 +31,21 @@ describe('csvParser', () => {
     
     expect(result.length).toBe(2);
   });
+
+  it('debe manejar BOM de UTF-8', () => {
+    const csv = '\uFEFFNHC_ID|NOMBRE\n123|JUAN';
+    const result = parseCSV(csv);
+    
+    expect(result.length).toBe(1);
+    expect(result[0].NHC_ID).toBe('123');
+  });
+
+  it('debe manejar filas malformadas rellenando con cadenas vacías', () => {
+    const csv = 'NHC_ID|NOMBRE|EDAD\n123|JUAN\n456|MARIA|30|EXTRA';
+    const result = parseCSV(csv);
+    
+    expect(result.length).toBe(2);
+    expect(result[0].EDAD).toBe(''); // Falta valor
+    expect(result[1].EDAD).toBe('30'); // Extra ignorado
+  });
 });
