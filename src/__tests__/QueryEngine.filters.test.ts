@@ -86,7 +86,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          }
         }
       }
     });
@@ -106,7 +110,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'ASMA' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'ASMA' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'ASMA' } }
+          }
         }
       }
     });
@@ -124,7 +132,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          }
         }
       }
     });
@@ -142,8 +154,16 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2023-01-01', 'Enfermedad Actual': 'DIABETES' } }] },
-          'T2': { idToma: 'T2', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2023-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2023-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          },
+          'T2': { 
+            idToma: 'T2', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          }
         }
       }
     });
@@ -161,7 +181,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': '' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': '' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': '' } }
+          }
         }
       }
     });
@@ -176,7 +200,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES ASMA' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES ASMA' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES ASMA' } }
+          }
         }
       }
     });

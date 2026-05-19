@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { Sun, Moon, Database, Users, HelpCircle, ShieldCheck, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { HCEData } from './core/types';
@@ -6,39 +6,80 @@ import { searchEngine, SearchResult } from './engine';
 import { db } from './storage/indexedDB';
 import { parseClinicalDate, extractFecha, extractHora } from './utils/dateParser';
 import Home from './components/Home';
-import Results from './components/Results';
-import HCEView from './components/HCEView';
-import Help from './components/Help';
-import Evolution from './components/Evolution';
 import GlobalHeader from './components/GlobalHeader';
-import { AdminRoot } from './admin-studio/AdminRoot';
-import { schemaStore } from './admin-studio/persistence/SchemaStore';
+
+// Chunk Splitting: Lazy Loading Heavy Components
+const Results = React.lazy(() => import('./components/Results'));
+const HCEView = React.lazy(() => import('./components/HCEView'));
+const Help = React.lazy(() => import('./components/Help'));
+const Evolution = React.lazy(() => import('./components/Evolution'));
+const AdminRoot = React.lazy(() => import('./admin-studio/AdminRoot').then(m => ({ default: m.AdminRoot })));
+const ManualMappingWizard = React.lazy(() => import('./components/ManualMappingWizard'));
+
+import { schemaStore } from './admin-studio/store/SchemaStore';
 import { ClinicalFormSchema } from './admin-studio/domain/types';
 import { FORMS } from './core/mappings';
 import { schemaRuntimeSync } from './admin-studio/store/schemaRuntimeSync';
+import { 
+  PersistentMappingProfiles, 
+  SchemaCompiler, 
+  MappingProfile 
+} from './ingestion/UniversalImportEngine';
 import pkg from '../package.json';
 
 
 /**
  * Error Boundary para mitigar fallos en tiempo de renderizado
  */
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  state: { hasError: boolean } = { hasError: false };
-  props!: { children: React.ReactNode };
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
 
-  static getDerivedStateFromError() { return { hasError: true }; }
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+  errorInfo?: React.ErrorInfo;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    // @ts-ignore
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // @ts-ignore
+    this.setState({ errorInfo });
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
   render() {
+    // @ts-ignore
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg-clinical)] text-center p-10">
           <h2 className="text-2xl font-black text-[var(--accent-clinical)] mb-4">Sistema Temporalmente Fuera de Servicio</h2>
           <p className="text-[var(--text-secondary)] mb-6">Se ha detectado una excepción en la interfaz. Por favor, reinicia la sesión.</p>
+          {/* @ts-ignore */}
+          {this.state.error && (
+            <div className="bg-red-950/20 text-red-500 p-4 rounded-xl text-left font-mono text-sm mb-6 max-w-3xl overflow-auto border border-red-500/20">
+              {/* @ts-ignore */}
+              <p className="font-bold">{this.state.error.toString()}</p>
+              {/* @ts-ignore */}
+              <pre className="mt-2 text-xs opacity-70 whitespace-pre-wrap">{this.state.errorInfo?.componentStack}</pre>
+            </div>
+          )}
           <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[var(--accent-clinical)] text-white font-bold rounded-xl shadow-lg">
             Reiniciar Aplicación
           </button>
         </div>
       );
     }
+    // @ts-ignore
     return this.props.children;
   }
 }
@@ -46,10 +87,19 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 const VERSION = pkg.version;
 const BUILD_DATE = __BUILD_DATE__;
 
-const ADMIN_STUDIO_VERSION = "1.0.0";
-const ADMIN_STUDIO_DATE = "18/05/2026, 12:35";
+const ADMIN_STUDIO_VERSION = "2.0.0-STABLE";
+const ADMIN_STUDIO_DATE = "19/05/2026, 12:35";
 
 type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
+
+function FallbackLoader() {
+  return (
+    <div className="flex-1 w-full h-full p-8 flex flex-col gap-8 animate-pulse opacity-60">
+      <div className="h-14 bg-[var(--surface-clinical)] rounded-2xl border border-[var(--border-clinical)] w-1/3"></div>
+      <div className="flex-1 bg-[var(--surface-clinical)] rounded-3xl border border-[var(--border-clinical)] w-full"></div>
+    </div>
+  );
+}
 
 export default function App() {
   const [view, setView] = useState<ViewState>('home');
@@ -68,6 +118,13 @@ export default function App() {
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   const [clinicalSchema, setClinicalSchema] = useState<ClinicalFormSchema | null>(null);
+
+  // Estados para el Mapping Universal
+  const [showMappingWizard, setShowMappingWizard] = useState(false);
+  const [wizardRawHeaders, setWizardRawHeaders] = useState<string[]>([]);
+  const [wizardFileName, setWizardFileName] = useState<string>('');
+  const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
+  const [pendingUploadConfig, setPendingUploadConfig] = useState<any>(null);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('queryclin_theme') as 'light' | 'dark') || 'light';
@@ -138,27 +195,14 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('queryclin_debug', String(debugMode));
+    searchEngine.setDebugProfilingMode(debugMode);
   }, [debugMode]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const toggleDebug = () => setDebugMode(prev => !prev);
 
 
-  const handleFileUpload = async (file: File, formId: string, config?: { fileType: string, delimiter: string }) => {
-    let mapping = FORMS.find(f => f.id === formId);
-    
-    // SSOT: Cargar mapping compilado en runtime desde IndexedDB
-    const runtimeMapping = await schemaRuntimeSync.getRuntimeMapping(formId);
-    if (runtimeMapping) {
-      mapping = runtimeMapping;
-      console.log(`[App] Usando mapping runtime para ${formId}`);
-    }
-
-    if (!mapping) {
-        alert("Error crítico: Formulario no válido.");
-        return;
-    }
-
+  const proceedWithIngestion = async (file: File, mapping: any, delimiter: string) => {
     setIsProcessing(true);
     setProcessingType('ingest');
     setDebugLogs([]);
@@ -168,11 +212,10 @@ export default function App() {
       const buffer = await file.arrayBuffer();
       let text = '';
 
-      if (file.name.toLowerCase().endsWith('.xlsx') || config?.fileType === 'xlsx') {
+      if (file.name.toLowerCase().endsWith('.xlsx')) {
         const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, cellFormula: true, dateNF: 'dd/mm/yyyy hh:mm:ss' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         
-        // Rescatar campos que Excel malinterpretó como fórmulas (ej: "- Paciente con tos" -> #NAME?)
         if (worksheet['!ref']) {
           const range = XLSX.utils.decode_range(worksheet['!ref']);
           for (let R = range.s.r; R <= range.e.r; ++R) {
@@ -180,18 +223,16 @@ export default function App() {
               const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
               const cell = worksheet[cellAddress];
               if (cell && cell.t === 'e' && cell.f) {
-                cell.t = 's'; // Cambiar tipo a string
-                cell.v = cell.f; // Restaurar el texto original (ej: "- Paciente")
-                delete cell.w; // Forzar que sheet_to_csv recalcule el formato
+                cell.t = 's';
+                cell.v = cell.f;
+                delete cell.w;
               }
             }
           }
         }
         
-        text = XLSX.utils.sheet_to_csv(worksheet, { FS: config?.delimiter || '|', dateNF: 'dd/mm/yyyy hh:mm:ss' });
+        text = XLSX.utils.sheet_to_csv(worksheet, { FS: delimiter || '|', dateNF: 'dd/mm/yyyy hh:mm:ss' });
         console.log('[App] Archivo Excel convertido a CSV para procesamiento. Errores rescatados.');
-
-
       } else {
         try {
           const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -214,7 +255,7 @@ export default function App() {
         csvText: text, 
         mapping, 
         strictMode: false,
-        delimiter: file.name.toLowerCase().endsWith('.xlsx') ? '|' : config?.delimiter,
+        delimiter: file.name.toLowerCase().endsWith('.xlsx') ? '|' : delimiter,
         source_file: file.name,
         ingest_timestamp: new Date().toISOString()
       });
@@ -232,15 +273,13 @@ export default function App() {
         if (type === 'complete') {
           console.log("[App] Ingesta completada. Sincronizando interfaz...");
           
-          // Primero actualizamos estados ligeros para cerrar el cargador
           setPatientCount(patientCount);
-          setActiveFormId(formId);
+          setActiveFormId(mapping.id);
           setData({ patients: {} }); 
           setIsProcessing(false);
           setProcessingType(null);
           worker.terminate();
 
-          // Cargamos el índice pesado en el siguiente tick
           setTimeout(async () => {
             try {
               await searchEngine.loadIndex({ patients: {} }); 
@@ -256,7 +295,6 @@ export default function App() {
           setProcessingType(null);
           worker.terminate();
         } else if (type === 'debug_warn') {
-          // No aborta, solo acumula los logs
           setDebugLogs(prev => [...prev, ...event.data.logs]);
         } else if (type === 'error') {
           console.error("Error en el worker:", message);
@@ -267,7 +305,6 @@ export default function App() {
         }
       };
 
-
       worker.onerror = (err) => {
         console.error("Fallo crítico del worker:", err);
         setIsProcessing(false);
@@ -275,11 +312,121 @@ export default function App() {
         worker.terminate();
       };
     } catch (err: any) {
-      console.error("Fallo crítico en handleFileUpload:", err);
+      console.error("Fallo crítico en proceedWithIngestion:", err);
       setIsProcessing(false);
       setProcessingType(null);
       alert("Error preparando el archivo para ingesta: " + err.message);
     }
+  };
+
+  const handleFileUpload = async (file: File, formId: string, config?: { fileType: string, delimiter: string }) => {
+    if (formId === 'universal_import') {
+      try {
+        const buffer = await file.arrayBuffer();
+        let rawHeaders: string[] = [];
+        let delimiter = config?.delimiter || '|';
+
+        const deduplicateHeaders = (headers: string[]) => {
+          const result: string[] = [];
+          const counts: Record<string, number> = {};
+          for (const h of headers) {
+            let finalH = h;
+            const lowerKey = h.toLowerCase();
+            let count = counts[lowerKey] || 0;
+            if (count > 0) {
+              finalH = `${h} (${count})`;
+            }
+            counts[lowerKey] = count + 1;
+            result.push(finalH);
+          }
+          return result;
+        };
+
+        if (file.name.toLowerCase().endsWith('.xlsx') || config?.fileType === 'xlsx') {
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+          if (json.length > 0) {
+            const extracted = json[0].map(String).map(h => h.trim()).filter(Boolean);
+            rawHeaders = deduplicateHeaders(extracted);
+          }
+        } else {
+          let text = '';
+          try {
+            const decoder = new TextDecoder('utf-8');
+            text = decoder.decode(buffer.slice(0, 20000));
+          } catch {
+            const decoder = new TextDecoder('windows-1252');
+            text = decoder.decode(buffer.slice(0, 20000));
+          }
+          const firstLine = text.split('\n')[0] || '';
+          delimiter = config?.delimiter || (firstLine.includes('|') ? '|' : firstLine.includes(';') ? ';' : ',');
+          const extracted = firstLine.split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+          rawHeaders = deduplicateHeaders(extracted);
+        }
+
+        if (rawHeaders.length === 0) {
+          alert("Error: No se pudieron leer las cabeceras del archivo.");
+          return;
+        }
+
+        const profilesList = await PersistentMappingProfiles.getAllProfiles();
+        let matchingProfile: MappingProfile | null = null;
+
+        for (const prof of profilesList) {
+          const structuralExist = [
+            prof.demographics.nhc,
+            prof.demographics.idToma,
+            prof.demographics.ordenToma,
+            prof.demographics.fechaToma
+          ].every(hdr => rawHeaders.includes(hdr));
+
+          if (structuralExist) {
+            const mappedKeys = Object.keys(prof.mappings);
+            const commonKeys = mappedKeys.filter(k => rawHeaders.includes(k));
+            const matchRate = commonKeys.length / (mappedKeys.length || 1);
+            if (matchRate > 0.85) {
+              matchingProfile = prof;
+              break;
+            }
+          }
+        }
+
+        if (matchingProfile) {
+          console.log(`[UniversalImport] Perfil detectado automáticamente: ${matchingProfile.name}`);
+          const compiledSchema = SchemaCompiler.compile(matchingProfile, rawHeaders);
+          const compiledMapping = SchemaCompiler.compileToMapping(compiledSchema);
+          
+          await schemaStore.saveSchema(compiledSchema);
+          await schemaRuntimeSync.syncRuntimeMapping(compiledMapping.id, '1.0');
+          
+          await proceedWithIngestion(file, compiledMapping, delimiter);
+        } else {
+          setPendingUploadFile(file);
+          setPendingUploadConfig({ delimiter });
+          setWizardRawHeaders(rawHeaders);
+          setWizardFileName(file.name);
+          setShowMappingWizard(true);
+        }
+      } catch (err: any) {
+        console.error("Error en pre-flight de importación universal:", err);
+        alert("Error al analizar el archivo: " + err.message);
+      }
+      return;
+    }
+
+    let mapping = FORMS.find(f => f.id === formId);
+    const runtimeMapping = await schemaRuntimeSync.getRuntimeMapping(formId);
+    if (runtimeMapping) {
+      mapping = runtimeMapping;
+    }
+
+    if (!mapping) {
+      alert("Error crítico: Formulario no válido.");
+      return;
+    }
+
+    await proceedWithIngestion(file, mapping, file.name.toLowerCase().endsWith('.xlsx') ? '|' : (config?.delimiter || '|'));
   };
 
   // El filtrado por categorías y campos ahora se resuelve de forma nativa e instantánea en QueryEngine.
@@ -332,9 +479,12 @@ export default function App() {
       
       setSearchResults(results);
       setView('results');
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log("[App] Búsqueda cancelada por una consulta más reciente.");
+        return;
+      }
       console.error("[App] Fallo crítico en el motor de búsqueda:", err);
-      // Opcional: Notificar al usuario o mantener estado previo
     }
   };
 
@@ -363,6 +513,44 @@ export default function App() {
       }
     }
   };
+
+  const handleGoHome = useCallback(() => {
+    setQuery('');
+    setView('home');
+    setActiveFilters(undefined);
+    setSelectedIndex(-1);
+    setSelectedTomaIndex(0);
+    setSelectedVersionIndex(0);
+    setIsAdminMode(false);
+    setSearchResults([]);
+    setClinicalSchema(null);
+  }, []);
+
+  const handleResultsBack = useCallback(() => {
+    setQuery('');
+    setView('home');
+  }, []);
+
+  const handleResultsSelect = useCallback((res: SearchResult) => {
+    const idx = searchResults.findIndex(r => r.nhc === res.nhc);
+    setSelectedIndex(idx);
+    setView('hce');
+  }, [searchResults]);
+
+  const handleTomaNavigate = useCallback((tIdx: number, vIdx: number) => {
+    setSelectedTomaIndex(tIdx);
+    setSelectedVersionIndex(vIdx);
+  }, []);
+
+  const handleNavigateIndex = useCallback((idx: number) => {
+    setSelectedIndex(idx);
+    setSelectedTomaIndex(0);
+    setSelectedVersionIndex(0);
+  }, []);
+
+  const handleHceBack = useCallback(() => {
+    setView('results');
+  }, []);
 
   // Efecto para cargar el paciente activo para la cabecera
   const [activePatient, setActivePatient] = useState<any>(null);
@@ -401,12 +589,12 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="h-screen flex flex-col bg-[var(--bg-clinical)] text-[var(--text-primary)] font-sans overflow-hidden">
-        {isAdminMode && <AdminRoot onExit={() => setIsAdminMode(false)} version={ADMIN_STUDIO_VERSION} buildDate={ADMIN_STUDIO_DATE} />}
+        {isAdminMode && <AdminRoot onExit={() => setIsAdminMode(false)} onGoHome={handleGoHome} version={ADMIN_STUDIO_VERSION} buildDate={ADMIN_STUDIO_DATE} />}
         <GlobalHeader 
           query={query}
           activeFilters={activeFilters}
           onSearch={handleSearch}
-          onGoHome={() => { setQuery(''); setView('home'); setIsAdminMode(false); }}
+          onGoHome={handleGoHome}
           getSuggestions={(q) => searchEngine.getSuggestions(q)}
           view={view}
           currentIndex={selectedIndex}
@@ -503,63 +691,222 @@ export default function App() {
             </div>
           )}
 
-          {view === 'home' && (
-            <div className="transition-all duration-500 ease-in-out">
-              <Home 
-                key={isAdminMode ? 'admin' : 'home'}                onUpload={handleFileUpload} 
-                onSearch={handleSearch} 
-                getSuggestions={(q) => searchEngine.getSuggestions(q)}
-                hasData={!!data || patientCount > 0} 
-                activeFormId={activeFormId}
-              />
-            </div>
-          )}
-          {view === 'results' && (
-            <div className="pt-8">
-              <Results 
-                results={searchResults} 
-                query={query}
-                onBack={() => { setQuery(''); setView('home'); }} 
-                onSelect={(res) => {
-                  const idx = searchResults.findIndex(r => r.nhc === res.nhc);
-                  setSelectedIndex(idx);
-                  setView('hce');
-                }}
-              />
-            </div>
-          )}
-          {view === 'hce' && selectedIndex >= 0 && selectedIndex < searchResults.length && (
-            <HCEView
-              results={searchResults}
-              currentIndex={selectedIndex}
-              query={query}
-              formId={activeFormId}
-              activeFilters={activeFilters}
-              activeTomaIndex={selectedTomaIndex}
-              activeVersionIndex={selectedVersionIndex}
-              onTomaNavigate={(tIdx, vIdx) => {
-                setSelectedTomaIndex(tIdx);
-                setSelectedVersionIndex(vIdx);
-              }}
-              onNavigate={(idx) => {
-                setSelectedIndex(idx);
-                setSelectedTomaIndex(0);
-                setSelectedVersionIndex(0);
-              }}
-              onBack={() => setView('results')}
-              debugMode={debugMode}
-              clinicalSchema={clinicalSchema || undefined}
-            />
-          )}
-          {view === 'help' && (
-            <Help onBack={() => setView('home')} />
-          )}
-          {view === 'evolution' && (
-            <Evolution onBack={() => setView('home')} />
-          )}
+          <Suspense fallback={<FallbackLoader />}>
+            {showMappingWizard ? (
+              <div className="p-8">
+                <ManualMappingWizard 
+                  fileName={wizardFileName}
+                  rawHeaders={wizardRawHeaders}
+                  onCancel={() => {
+                    setShowMappingWizard(false);
+                    setPendingUploadFile(null);
+                    setPendingUploadConfig(null);
+                  }}
+                  onImportComplete={async (compiledMapping) => {
+                    setShowMappingWizard(false);
+                    if (pendingUploadFile) {
+                      await proceedWithIngestion(
+                        pendingUploadFile, 
+                        compiledMapping, 
+                        pendingUploadConfig?.delimiter || '|'
+                      );
+                    }
+                    setPendingUploadFile(null);
+                    setPendingUploadConfig(null);
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                {view === 'home' && (
+                  <div className="transition-all duration-500 ease-in-out">
+                    <Home 
+                      key={isAdminMode ? 'admin' : 'home'}
+                      onUpload={handleFileUpload} 
+                      onSearch={handleSearch} 
+                      getSuggestions={(q) => searchEngine.getSuggestions(q)}
+                      hasData={!!data || patientCount > 0} 
+                      activeFormId={activeFormId}
+                    />
+                  </div>
+                )}
+                {view === 'results' && (
+                  <div className="pt-8">
+                    <Results 
+                      results={searchResults} 
+                      query={query}
+                      onBack={handleResultsBack} 
+                      onSelect={handleResultsSelect}
+                    />
+                  </div>
+                )}
+                {view === 'hce' && selectedIndex >= 0 && selectedIndex < searchResults.length && (
+                  <HCEView
+                    results={searchResults}
+                    currentIndex={selectedIndex}
+                    query={query}
+                    formId={activeFormId}
+                    activeFilters={activeFilters}
+                    activeTomaIndex={selectedTomaIndex}
+                    activeVersionIndex={selectedVersionIndex}
+                    onTomaNavigate={handleTomaNavigate}
+                    onNavigate={handleNavigateIndex}
+                    onBack={handleHceBack}
+                    debugMode={debugMode}
+                    clinicalSchema={clinicalSchema || undefined}
+                  />
+                )}
+                {view === 'help' && (
+                  <Help onBack={() => setView('home')} />
+                )}
+                {view === 'evolution' && (
+                  <Evolution onBack={() => setView('home')} />
+                )}
+              </>
+            )}
+          </Suspense>
         </main>
+        <DiagnosticPanel debugMode={debugMode} />
       </div>
     </ErrorBoundary>
+  );
+}
+
+function DiagnosticPanel({ debugMode }: { debugMode: boolean }) {
+  const [metrics, setMetrics] = useState<any>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [storageStats, setStorageStats] = useState<{ usage: number; quota: number; percentage: number; isSupported: boolean } | null>(null);
+  const [integrityStatus, setIntegrityStatus] = useState<{ healthy: boolean; corruptedStores: string[]; errors: string[] } | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  useEffect(() => {
+    if (!debugMode) return;
+    const updateMetrics = () => {
+      setMetrics(searchEngine.getMetrics());
+    };
+    updateMetrics();
+    
+    // Fetch Storage Stats
+    db.diagnoseStorage().then(stats => setStorageStats(stats));
+    
+    const interval = setInterval(updateMetrics, 1000);
+    return () => clearInterval(interval);
+  }, [debugMode]);
+
+  const handleVerifyIntegrity = async () => {
+    setIsChecking(true);
+    const status = await db.verifyIntegrity();
+    setIntegrityStatus(status);
+    setIsChecking(false);
+  };
+
+  const handleEmergencyReset = async () => {
+    if (window.confirm("CRITICAL WARNING: This will immediately delete the entire Queryclin database and all patient records. Are you sure?")) {
+      try {
+        await db.emergencyReset();
+        window.location.reload();
+      } catch (err) {
+        alert("Emergency reset failed: " + err);
+      }
+    }
+  };
+
+  if (!debugMode || !metrics) return null;
+
+  const hitRateQuery = (metrics.queryCacheHits + metrics.queryCacheMisses) > 0 
+    ? (metrics.queryCacheHits / (metrics.queryCacheHits + metrics.queryCacheMisses)) * 100 
+    : 0;
+  const hitRateToken = (metrics.tokenCacheHits + metrics.tokenCacheMisses) > 0 
+    ? (metrics.tokenCacheHits / (metrics.tokenCacheHits + metrics.tokenCacheMisses)) * 100 
+    : 0;
+  const memoryMB = metrics.estimatedMemoryFootprintBytes / 1024 / 1024;
+  const storageUsageMB = storageStats ? (storageStats.usage / 1024 / 1024).toFixed(1) : '0.0';
+  const storageQuotaGB = storageStats ? (storageStats.quota / 1024 / 1024 / 1024).toFixed(1) : '0.0';
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[150] font-sans">
+      {!isOpen ? (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900/90 text-white rounded-full border border-slate-700/50 backdrop-blur-md shadow-xl hover:bg-slate-800 transition-all text-xs font-black uppercase tracking-wider"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          HEALTHCHECK
+        </button>
+      ) : (
+        <div className="w-96 bg-slate-950/95 text-slate-300 border border-slate-800/80 backdrop-blur-lg rounded-2xl shadow-2xl p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-5 duration-200">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-sm font-black text-white uppercase tracking-wider">System Healthcheck</span>
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-[10px] uppercase font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              [Cerrar]
+            </button>
+          </div>
+
+          <div className="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-2">
+            
+            <h4 className="text-emerald-400 font-black uppercase tracking-widest border-b border-emerald-900/50 pb-1">Motor de Búsqueda</h4>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Última Búsqueda:</span>
+              <span className="font-bold text-white font-mono">{metrics.lastSearchDurationMs.toFixed(2)}ms</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Hits Cache Query:</span>
+              <span className="font-bold text-white font-mono">{hitRateQuery.toFixed(1)}% <span className="text-slate-500 text-[10px]">({metrics.queryCacheHits}/{metrics.queryCacheHits + metrics.queryCacheMisses})</span></span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Docs Indexados:</span>
+              <span className="font-bold text-slate-300 font-mono">{metrics.documentCount}</span>
+            </div>
+
+            <h4 className="text-blue-400 font-black uppercase tracking-widest border-b border-blue-900/50 pb-1 mt-4">Almacenamiento (IndexedDB)</h4>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Uso Actual:</span>
+              <span className="font-bold text-white font-mono">{storageUsageMB} MB</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Cuota Máxima:</span>
+              <span className="font-bold text-white font-mono">{storageQuotaGB} GB</span>
+            </div>
+            {storageStats && storageStats.percentage > 80 && (
+              <div className="bg-amber-900/30 text-amber-500 border border-amber-500/20 p-2 rounded text-[10px] font-bold">
+                ⚠️ Advertencia de Cuota: Almacenamiento local al {storageStats.percentage.toFixed(1)}%. Podría ocurrir pérdida de datos persistentes.
+              </div>
+            )}
+
+            <h4 className="text-purple-400 font-black uppercase tracking-widest border-b border-purple-900/50 pb-1 mt-4">Integridad del Sistema</h4>
+            <div className="flex gap-2 mb-2">
+              <button 
+                onClick={handleVerifyIntegrity}
+                disabled={isChecking}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-1.5 rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50"
+              >
+                {isChecking ? 'Verificando...' : 'Verificar DB'}
+              </button>
+              <button 
+                onClick={handleEmergencyReset}
+                className="flex-1 bg-red-900/50 border border-red-500/30 hover:bg-red-900 hover:border-red-500 text-red-300 py-1.5 rounded text-[10px] font-bold uppercase transition-colors"
+              >
+                Reset DB
+              </button>
+            </div>
+            
+            {integrityStatus && (
+              <div className={`p-2 rounded text-[10px] font-mono whitespace-pre-wrap ${integrityStatus.healthy ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-500/20' : 'bg-red-900/30 text-red-400 border border-red-500/20'}`}>
+                {integrityStatus.healthy 
+                  ? '✅ Todas las tablas de IndexedDB verificadas correctamente. Ninguna corrupción detectada.' 
+                  : `❌ Corrupción detectada en: ${integrityStatus.corruptedStores.join(', ')}\n${integrityStatus.errors.join('\n')}`}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

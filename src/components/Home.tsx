@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Upload, ShieldCheck, Database, Zap, Filter, Calendar, Stethoscope } from 'lucide-react';
 import { searchEngine } from '../engine';
 import { FORMS } from '../core/mappings';
-import { normalizeString } from '../utils/stringNormalizer';
 import { schemaRuntimeSync } from '../admin-studio/store/schemaRuntimeSync';
+import { normalizeString } from '../utils/stringNormalizer';
 
 interface HomeProps {
   key?: string | number;
@@ -140,6 +140,7 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
                   className="w-full pl-10 pr-4 py-4 bg-[var(--bg-clinical)] border-2 border-[var(--border-clinical)] rounded-xl focus:border-[var(--accent-clinical)] focus:outline-none transition-all text-sm font-bold text-[var(--text-primary)] cursor-pointer"
                 >
                   <option value="" disabled>-- Elegir especialidad --</option>
+                  <option value="universal_import">★ Auto-Detectar Estructura (Mapeador Universal)</option>
                   {availableForms.map(f => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}

@@ -5,11 +5,12 @@ import { Settings, HelpCircle, X } from 'lucide-react';
 
 interface AdminRootProps {
   onExit: () => void;
+  onGoHome: () => void;
   version: string;
   buildDate: string;
 }
 
-export function AdminRoot({ onExit, version, buildDate }: AdminRootProps) {
+export function AdminRoot({ onExit, onGoHome, version, buildDate }: AdminRootProps) {
   const [selectedSchemaId, setSelectedSchemaId] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -41,8 +42,8 @@ export function AdminRoot({ onExit, version, buildDate }: AdminRootProps) {
       {/* Cabecera Unificada de Admin Studio */}
       <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex justify-between items-center px-6 relative z-[110] shadow-sm backdrop-blur-md bg-opacity-95 shrink-0">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[var(--accent-clinical)] rounded-xl flex items-center justify-center text-white shadow-lg">
+          <div onClick={onGoHome} className="flex items-center gap-3 cursor-pointer group">
+            <div className="w-10 h-10 bg-[var(--accent-clinical)] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
               <Settings size={24} strokeWidth={3} />
             </div>
             <div className="flex flex-col leading-none">
@@ -146,11 +147,26 @@ function PasscodeGate({ onCorrect }: { onCorrect: () => void }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const hashPasscode = async (input: string): Promise<string> => {
+    const msgBuffer = new TextEncoder().encode(input);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code === "admin123") {
-      onCorrect();
-    } else {
+    try {
+      const hash = await hashPasscode(code);
+      if (hash === "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9") {
+        onCorrect();
+      } else {
+        setError(true);
+        setCode("");
+      }
+    } catch (err) {
+      console.error("[PasscodeGate] Hashing failed:", err);
+      // Fallback seguro: fallar cerrado
       setError(true);
       setCode("");
     }

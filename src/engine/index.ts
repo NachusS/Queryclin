@@ -25,6 +25,7 @@ class SearchEngineFacade {
   }
 
   startIndexing() {
+    queryEngine.clearCache();
     indexerService.startIndexing();
   }
 
@@ -38,6 +39,7 @@ class SearchEngineFacade {
 
   async finalizeIndexing() {
     await indexerService.finalizeIndexing();
+    queryEngine.clearCache();
   }
 
   // --- Search & Queries ---
@@ -57,8 +59,36 @@ class SearchEngineFacade {
     return queryEngine.getSuggestions(input);
   }
 
-  async search(query: string, filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }): Promise<SearchResult[]> {
-    return await queryEngine.search(query, filters);
+  private activeAbortController: AbortController | null = null;
+
+  async search(
+    query: string, 
+    filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean },
+    signal?: AbortSignal
+  ): Promise<SearchResult[]> {
+    if (!signal) {
+      if (this.activeAbortController) {
+        this.activeAbortController.abort();
+      }
+      this.activeAbortController = new AbortController();
+      signal = this.activeAbortController.signal;
+    }
+    
+    try {
+      return await queryEngine.search(query, filters, signal);
+    } finally {
+      if (this.activeAbortController?.signal === signal) {
+        this.activeAbortController = null;
+      }
+    }
+  }
+
+  getMetrics() {
+    return queryEngine.getMetrics();
+  }
+
+  setDebugProfilingMode(enabled: boolean) {
+    queryEngine.setDebugProfilingMode(enabled);
   }
 }
 

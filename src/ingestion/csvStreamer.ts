@@ -22,7 +22,23 @@ export function* streamCSV(csvText: string, forcedDelimiter?: string): Generator
   
   const firstLine = csvText.slice(0, firstLineEnd).trim();
   const delimiter = forcedDelimiter || detectDelimiter(firstLine);
-  const headers = parseCSVLine(firstLine, delimiter).map(h => h.trim());
+  const rawHeaders = parseCSVLine(firstLine, delimiter).map(h => h.trim());
+  const headers: string[] = [];
+  const headerCounts: Record<string, number> = {};
+  for (const h of rawHeaders) {
+    if (!h) {
+      headers.push(h); // Allow empty headers to just pass through, though they shouldn't exist
+      continue;
+    }
+    let finalH = h;
+    const lowerKey = h.toLowerCase();
+    let count = headerCounts[lowerKey] || 0;
+    if (count > 0) {
+      finalH = `${h} (${count})`;
+    }
+    headerCounts[lowerKey] = count + 1;
+    headers.push(finalH);
+  }
 
   let pos = firstLineEnd;
   

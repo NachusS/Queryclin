@@ -10,13 +10,27 @@ interface DynamicGroupRendererProps {
   debugMode?: boolean;
 }
 
-export function DynamicGroupRenderer({ group, data, searchQuery = '', debugMode = false }: DynamicGroupRendererProps) {
+export const DynamicGroupRenderer = React.memo<DynamicGroupRendererProps>(({ group, data, searchQuery = '', debugMode = false }) => {
   // Filtrar campos vacíos si no estamos en debugMode
   const activeFields = group.fields.filter(f => {
     if (!f.visible) return false;
     if (debugMode) return true;
+    
+    // Check if field has direct value
     const val = data[f.sourceField];
-    return val !== undefined && val !== null && String(val).trim() !== '';
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      return true;
+    }
+    
+    // Check if any child has value
+    if (f.children && f.children.length > 0) {
+      return f.children.some(child => {
+        const childVal = data[child.sourceField];
+        return childVal !== undefined && childVal !== null && String(childVal).trim() !== '';
+      });
+    }
+    
+    return false;
   });
 
   if (activeFields.length === 0 && !debugMode) return null;
@@ -32,8 +46,10 @@ export function DynamicGroupRenderer({ group, data, searchQuery = '', debugMode 
     return (
       <div className="my-4 select-none w-full">
         {group.title && (
-          <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 inline-block mb-[1px] shadow-sm">
-            {group.title}:
+          <div className="mb-2">
+            <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 w-full shadow-sm">
+              {group.title}:
+            </div>
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
@@ -78,9 +94,10 @@ export function DynamicGroupRenderer({ group, data, searchQuery = '', debugMode 
             field={f} 
             value={data[f.sourceField]} 
             searchQuery={searchQuery} 
+            record={data}
           />
         ))}
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { SearchResult } from '../engine';
 import { ArrowLeft, FileText, Activity, User, ChevronRight, FileSpreadsheet, X, Info } from 'lucide-react';
 import { db } from '../storage/indexedDB';
@@ -14,7 +14,7 @@ interface ResultsProps {
 }
 
 // ─── Avatar Compacto ──────────────────────────────────────────────────────────
-function PatientAvatar({ gender, size = 16 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
+const PatientAvatar = memo(function PatientAvatar({ gender, size = 16 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
   const config = {
     male:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-500',    border: 'border-cyan-500/20' },
     female:  { bg: 'bg-purple-400/10',  text: 'text-purple-400',  border: 'border-purple-400/20' },
@@ -26,26 +26,10 @@ function PatientAvatar({ gender, size = 16 }: { gender: 'male' | 'female' | 'neu
       <User size={size} />
     </div>
   );
-}
+});
 
-// ─── Fila de Resultado (Compacta) ──────────────────────────────────────────────
-function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: (r: SearchResult) => void }) {
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    const fetchDemographics = async () => {
-      const p = await db.getFromStore(db.stores.patients, res.nhc);
-      if (active && p) {
-        setPatient(p);
-        setLoading(false);
-      }
-    };
-    fetchDemographics();
-    return () => { active = false; };
-  }, [res.nhc]);
-
+const ResultRow = memo(function ResultRow({ res, patient, onSelect }: { res: SearchResult, patient: Patient | null, onSelect: (r: SearchResult) => void }) {
+  const loading = !patient;
   const demographics = patient?.demographics || {};
   
   // Búsqueda del valor a mostrar: Prioridad PROCESO (mapeado a EC_Proceso2 en worker) -> Nombre
@@ -118,7 +102,7 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
       </div>
     </div>
   );
-}
+});
 
 // ─── Modal de Exportación ─────────────────────────────────────────────────────
 function ExportModal({ onConfirm, onClose, count }: { onConfirm: (mode: ExportMode) => void; onClose: () => void; count: number; }) {
@@ -203,6 +187,7 @@ function ExportModal({ onConfirm, onClose, count }: { onConfirm: (mode: ExportMo
 export default function Results({ results, query, onSelect, onBack }: ResultsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [patientsMap, setPatientsMap] = useState<Record<string, Patient>>({});
   const itemsPerPage = 50;
   
   const totalPages = Math.ceil(results.length / itemsPerPage);
@@ -212,6 +197,24 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
   useEffect(() => {
     setCurrentPage(1);
   }, [results]);
+
+  useEffect(() => {
+    let active = true;
+    const preloadDemographics = async () => {
+      const nhcs = Array.from(new Set(visibleResults.map(r => r.nhc)));
+      if (nhcs.length === 0) return;
+      try {
+        const batch = await db.getBatch(db.stores.patients, nhcs);
+        if (active) {
+          setPatientsMap(prev => ({ ...prev, ...batch }));
+        }
+      } catch (err) {
+        console.error("[Results] Error preloading demographics:", err);
+      }
+    };
+    preloadDemographics();
+    return () => { active = false; };
+  }, [currentPage, results]);
 
   const handleExportExcel = async (mode: ExportMode) => {
     setShowExportModal(false);
@@ -285,7 +288,7 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
       {/* Lista de Resultados (Layout de Fila Unica) */}
       <div className="flex flex-col gap-2">
         {visibleResults.map((res, idx) => (
-          <ResultRow key={`res_${res.nhc}_${idx}`} res={res} onSelect={onSelect} />
+          <ResultRow key={`res_${res.nhc}_${idx}`} res={res} patient={patientsMap[res.nhc] || null} onSelect={onSelect} />
         ))}
 
         {results.length === 0 && (

@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FormSchema, Field, Group, Section } from '../domain/schema';
 import { schemaStore } from '../store/SchemaStore';
-import { DndContext, useDraggable, useDroppable, DragEndEvent, DragOverlay, DragStartEvent, closestCenter } from '@dnd-kit/core';
-import { Trash2, Plus, Settings2, Move, Layout, Eye, Search, Columns, ShieldAlert, Database, Clock } from 'lucide-react';
+import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, closestCenter, DragOverlay } from '@dnd-kit/core';
+import { Trash2, Plus, Layout, Search, Database, Move, Eye, ShieldAlert, Columns, Settings2 } from 'lucide-react';
 import { TaxonomyPanel } from './TaxonomyPanel';
 import { PreviewPanel } from './PreviewPanel';
 import { VersionSelector } from './VersionSelector';
@@ -15,7 +15,7 @@ interface FormDesignerProps {
 /**
  * Componente para campos en la paleta (izquierda)
  */
-function DraggablePaletteField({ field }: { field: Field, key?: string }) {
+const DraggablePaletteField = React.memo(function DraggablePaletteField({ field }: { field: Field, key?: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${field.id}`,
     data: { field, source: 'palette' }
@@ -35,12 +35,12 @@ function DraggablePaletteField({ field }: { field: Field, key?: string }) {
       </div>
     </div>
   );
-}
+});
 
 /**
  * Componente para campos en el lienzo (centro)
  */
-function DraggableCanvasField({ field, isSelected, onClick }: { field: Field, isSelected: boolean, onClick: (e: React.MouseEvent) => void, key?: string }) {
+const DraggableCanvasField = React.memo(function DraggableCanvasField({ field, isSelected, onClick }: { field: Field, isSelected: boolean, onClick: (e: React.MouseEvent) => void, key?: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `canvas-${field.id}`,
     data: { field, source: 'canvas' }
@@ -59,7 +59,7 @@ function DraggableCanvasField({ field, isSelected, onClick }: { field: Field, is
       {field.multivalue && <span className={`px-1 rounded text-[8px] ml-auto ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-500/10 text-purple-500'}`}>MV</span>}
     </div>
   );
-}
+});
 
 /**
  * Área de destino para grupos

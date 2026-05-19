@@ -95,6 +95,10 @@ self.onmessage = async (e: MessageEvent) => {
 
       const nhc = normalizedRecord[mapping.keys.nhc];
       if (!nhc) {
+          console.error('[DEBUG] Record actual:', record);
+          console.error('[DEBUG] Cabeceras mapeadas:', headerMap);
+          console.error('[DEBUG] Record normalizado:', normalizedRecord);
+          console.error('[DEBUG] Clave NHC esperada:', mapping.keys.nhc);
           self.postMessage({ type: 'debug_error', logs: [`Falta estructura clave (NHC nulo/vacío) en la línea ${totalProcessed + 1}.`] });
           return; // Abort
       }

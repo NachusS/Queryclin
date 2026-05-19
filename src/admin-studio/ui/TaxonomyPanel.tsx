@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FormSchema } from '../domain/schema';
-import { Settings2, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Settings2 } from 'lucide-react';
 
 interface TaxonomyPanelProps {
   schema: FormSchema;
@@ -83,6 +83,28 @@ export const TaxonomyPanel: React.FC<TaxonomyPanelProps> = ({ schema, onUpdate }
             placeholder="EC_Fecha_Toma"
           />
         </div>
+
+        <div className="space-y-3">
+          <label className="block text-[10px] font-bold text-[var(--text-primary)]">Id Toma Column</label>
+          <input 
+            type="text" 
+            value={schema.demographics?.idToma || ""} 
+            onChange={(e) => updateDemographics('idToma', e.target.value)}
+            className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl p-3 text-xs font-bold focus:ring-2 focus:ring-[var(--accent-clinical)]/20 focus:border-[var(--accent-clinical)] outline-none"
+            placeholder="Id_Toma"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="block text-[10px] font-bold text-[var(--text-primary)]">Orden Toma Column</label>
+          <input 
+            type="text" 
+            value={schema.demographics?.ordenToma || ""} 
+            onChange={(e) => updateDemographics('ordenToma', e.target.value)}
+            className="w-full bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl p-3 text-xs font-bold focus:ring-2 focus:ring-[var(--accent-clinical)]/20 focus:border-[var(--accent-clinical)] outline-none"
+            placeholder="Orden_Toma"
+          />
+        </div>
       </div>
 
       {/* Header Aliases */}
@@ -96,7 +118,7 @@ export const TaxonomyPanel: React.FC<TaxonomyPanelProps> = ({ schema, onUpdate }
               <span className="text-[10px] font-black text-[var(--accent-clinical)]">{key}</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {values.map(val => (
+              {(values as string[]).map(val => (
                 <span key={val} className="bg-[var(--surface-clinical)] text-[var(--text-primary)] text-[9px] font-bold px-2 py-1 rounded-md border border-[var(--border-clinical)] flex items-center gap-2">
                   {val}
                   <button onClick={() => removeHeaderAlias(key, val)} className="text-red-500 hover:text-red-700">×</button>

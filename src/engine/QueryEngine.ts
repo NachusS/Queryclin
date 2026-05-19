@@ -1,5 +1,4 @@
-import { HCEData, RegistroToma } from '../core/types';
-import { CLINICAL_SYNONYMS, STEM_WHITELIST } from './clinicalSynonyms';
+import { RegistroToma } from '../core/types';
 import { db } from '../storage/indexedDB';
 import { SemanticProcessor } from './SemanticProcessor';
 import { selectLatestSnapshots } from './selectLatestSnapshots';
@@ -30,12 +29,177 @@ export class QueryEngine {
   private documentCount = 0;
   private patientSkeletons: Record<string, any> = Object.create(null);
   private termFragmentCounts: Record<string, number> = Object.create(null);
+  private tokenFragmentsCache: Map<string, any[]> = new Map();
+  private readonly MAX_CACHE_SIZE = 1000;
+
+  private queryCache: Map<string, SearchResult[]> = new Map();
+  private readonly MAX_QUERY_CACHE_SIZE = 100;
+  private debugProfilingMode = false;
+
+  constructor() {
+    this.startBackgroundCleanup();
+  }
+
+  private metrics = {
+    queryCacheHits: 0,
+    queryCacheMisses: 0,
+    tokenCacheHits: 0,
+    tokenCacheMisses: 0,
+    lastSearchDurationMs: 0,
+    totalSearchTimeMs: 0,
+    searchCount: 0,
+    slowQueriesCount: 0
+  };
+
+  public setDebugProfilingMode(enabled: boolean) {
+    this.debugProfilingMode = enabled;
+  }
+
+  public getMetrics() {
+    return {
+      ...this.metrics,
+      tokenCacheSize: this.tokenFragmentsCache.size,
+      queryCacheSize: this.queryCache.size,
+      documentCount: this.documentCount,
+      dictionarySize: this.dictionary.length,
+      estimatedMemoryFootprintBytes: this.estimateMemoryFootprint()
+    };
+  }
+
+  private estimateMemoryFootprint(): number {
+    let bytes = 0;
+    try {
+      const skelStr = JSON.stringify(this.patientSkeletons);
+      bytes += skelStr.length * 2;
+    } catch (_) {}
+
+    try {
+      for (const [key, value] of this.tokenFragmentsCache.entries()) {
+        bytes += key.length * 2;
+        bytes += JSON.stringify(value).length * 2;
+      }
+    } catch (_) {}
+
+    try {
+      for (const [key, value] of this.queryCache.entries()) {
+        bytes += key.length * 2;
+        bytes += JSON.stringify(value).length * 2;
+      }
+    } catch (_) {}
+
+    return bytes;
+  }
+
+  private getQueryCache(key: string): SearchResult[] | undefined {
+    if (this.queryCache.has(key)) {
+      const val = this.queryCache.get(key);
+      this.queryCache.delete(key);
+      this.queryCache.set(key, val!);
+      this.metrics.queryCacheHits++;
+      return val;
+    }
+    this.metrics.queryCacheMisses++;
+    return undefined;
+  }
+
+  private cleanupInterval: number | null = null;
+
+  public startBackgroundCleanup(intervalMs = 60000) {
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+    this.cleanupInterval = setInterval(() => {
+      this.pruneCache();
+    }, intervalMs) as unknown as number;
+    console.log(`[QueryEngine Cache] Background cleanup job registered (Interval: ${intervalMs}ms)`);
+  }
+
+  public stopBackgroundCleanup() {
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+    this.cleanupInterval = null;
+  }
+
+  private pruneCache() {
+    // Prune Query Cache if > 80% full
+    if (this.queryCache.size > this.MAX_QUERY_CACHE_SIZE * 0.8) {
+      let pruned = 0;
+      for (const key of this.queryCache.keys()) {
+        this.queryCache.delete(key);
+        pruned++;
+        if (this.queryCache.size <= this.MAX_QUERY_CACHE_SIZE * 0.5) break;
+      }
+      console.log(`[QueryEngine Cache] Pruned ${pruned} stale queries in background.`);
+    }
+
+    // Prune Token Cache if > 80% full
+    if (this.tokenFragmentsCache.size > this.MAX_CACHE_SIZE * 0.8) {
+      let pruned = 0;
+      for (const key of this.tokenFragmentsCache.keys()) {
+        this.tokenFragmentsCache.delete(key);
+        pruned++;
+        if (this.tokenFragmentsCache.size <= this.MAX_CACHE_SIZE * 0.5) break;
+      }
+      console.log(`[QueryEngine Cache] Pruned ${pruned} stale token fragments in background.`);
+    }
+  }
+
+  private setQueryCache(key: string, value: SearchResult[]) {
+    if (this.queryCache.has(key)) {
+      this.queryCache.delete(key);
+    } else if (this.queryCache.size >= this.MAX_QUERY_CACHE_SIZE) {
+      const firstKey = this.queryCache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.queryCache.delete(firstKey);
+      }
+    }
+    this.queryCache.set(key, value);
+  }
+
+  public clearCache() {
+    this.tokenFragmentsCache.clear();
+    this.queryCache.clear();
+    console.log("[QueryEngine Cache] Cache de fragmentos e historial de queries invalidada y limpiada.");
+  }
+
+  private hasCache(key: string): boolean {
+    if (this.tokenFragmentsCache.has(key)) {
+      const val = this.tokenFragmentsCache.get(key);
+      this.tokenFragmentsCache.delete(key);
+      this.tokenFragmentsCache.set(key, val!);
+      this.metrics.tokenCacheHits++;
+      return true;
+    }
+    this.metrics.tokenCacheMisses++;
+    return false;
+  }
+
+  private getCache(key: string): any[] | undefined {
+    if (this.tokenFragmentsCache.has(key)) {
+      const val = this.tokenFragmentsCache.get(key);
+      this.tokenFragmentsCache.delete(key);
+      this.tokenFragmentsCache.set(key, val!);
+      return val;
+    }
+    return undefined;
+  }
+
+  private setCache(key: string, value: any[]) {
+    if (this.tokenFragmentsCache.has(key)) {
+      this.tokenFragmentsCache.delete(key);
+    } else if (this.tokenFragmentsCache.size >= this.MAX_CACHE_SIZE) {
+      const firstKey = this.tokenFragmentsCache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.tokenFragmentsCache.delete(firstKey);
+      }
+    }
+    this.tokenFragmentsCache.set(key, value);
+  }
+
   /** Longitud media de los documentos indexados (en tokens). Necesaria para BM25. */
   private avgDocLength = 0;
   public dictionary: string[] = [];
 
   public async loadIndex() {
     this.patientSkeletons = Object.create(null);
+    this.clearCache();
     
     console.log("[QueryEngine] Cargando metadatos del índice...");
     
@@ -49,8 +213,6 @@ export class QueryEngine {
       }
 
       this.documentCount = docCount || 0;
-      // BM25: la longitud media se estima como total_tokens / document_count.
-      // Si no está almacenada (datasets anteriores a V3.9.0), se usa un fallback heurístico.
       this.avgDocLength = avgLen || 150;
       console.log(`[QueryEngine] Metadatos BM25 cargados: ${this.documentCount} docs, avgLen=${this.avgDocLength} tokens.`);
       
@@ -83,7 +245,6 @@ export class QueryEngine {
   public getSuggestions(input: string): string[] {
     if (!input || input.length < 3) return [];
     
-    // Usamos el tokenizer para la normalización básica
     const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     return this.dictionary
@@ -91,7 +252,32 @@ export class QueryEngine {
       .slice(0, 8);
   }
 
-  public async search(query: string, filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }): Promise<SearchResult[]> {
+  public async search(
+    query: string, 
+    filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean },
+    signal?: AbortSignal
+  ): Promise<SearchResult[]> {
+    const startTime = performance.now();
+    
+    if (signal?.aborted) {
+      throw new DOMException('Search aborted', 'AbortError');
+    }
+
+    const cacheKey = JSON.stringify({ query: query.trim().toLowerCase(), filters });
+    const cached = this.getQueryCache(cacheKey);
+    if (cached) {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      this.metrics.lastSearchDurationMs = duration;
+      this.metrics.totalSearchTimeMs += duration;
+      this.metrics.searchCount++;
+      if (this.debugProfilingMode) {
+        console.log(`[QueryEngine Profiler] (Cache Hit) "${query}" devuelto en ${duration.toFixed(2)}ms.`);
+      }
+      return cached;
+    }
+
+    const parseStart = performance.now();
     const rawTerms = query.split(/\s+/).filter(t => t.length > 0);
     const must: string[] = [];
     const mustNot: string[] = [];
@@ -105,9 +291,8 @@ export class QueryEngine {
       
       if (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT') continue;
 
-      // MEJORA V3.9.0: Usar SemanticProcessor
       const rawTokens = SemanticProcessor.tokenize(originalTerm);
-      const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens; // Tomar el canónico si existe
+      const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens;
       
       const compact = originalTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
       const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
@@ -128,32 +313,79 @@ export class QueryEngine {
 
     const uniqueMust = Array.from(new Set(must));
 
-    if (must.length === 0 && should.length === 0) return await this.getAllRecords(filters);
+    if (must.length === 0 && should.length === 0) {
+      if (signal?.aborted) {
+        throw new DOMException('Search aborted', 'AbortError');
+      }
+      const allResults = await this.getAllRecords(filters, signal);
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      this.metrics.lastSearchDurationMs = duration;
+      this.metrics.totalSearchTimeMs += duration;
+      this.metrics.searchCount++;
+      
+      if (duration > 100) {
+        this.metrics.slowQueriesCount++;
+        console.warn(`[QueryEngine Warning] Slow query detected: "${query}" took ${duration.toFixed(2)}ms.`);
+      }
+      
+      this.setQueryCache(cacheKey, allResults);
+      return allResults;
+    }
 
     const allQueryTokens = Array.from(new Set([...uniqueMust, ...should, ...mustNot]));
     const indexResults: Record<string, any[]> = Object.create(null);
+    let cacheHits = 0;
+    let cacheMisses = 0;
     
+    const dbStart = performance.now();
     if (allQueryTokens.length > 0) {
       const allFragmentKeys: string[] = [];
+      const keysToFetch: string[] = [];
+      
       for (const token of allQueryTokens) {
         const count = this.termFragmentCounts[token] || 0;
         for (let i = 0; i < count; i++) {
-          allFragmentKeys.push(`${token}:${i}`);
+          const key = `${token}:${i}`;
+          allFragmentKeys.push(key);
+          if (this.hasCache(key)) {
+            cacheHits++;
+          } else {
+            cacheMisses++;
+            keysToFetch.push(key);
+          }
         }
       }
       
-      const fragments = await db.getBatch(db.stores.search_index, allFragmentKeys);
+      if (signal?.aborted) {
+        throw new DOMException('Search aborted', 'AbortError');
+      }
+      
+      let fetchedFragments: Record<string, any[]> = {};
+      if (keysToFetch.length > 0) {
+        fetchedFragments = await db.getBatch(db.stores.search_index, keysToFetch);
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
+        for (const key of keysToFetch) {
+          if (fetchedFragments[key]) {
+            this.setCache(key, fetchedFragments[key]);
+          }
+        }
+      }
       
       for (const token of allQueryTokens) {
         indexResults[token] = [];
         const count = this.termFragmentCounts[token] || 0;
         for (let i = 0; i < count; i++) {
-          const frag = fragments[`${token}:${i}`];
+          const key = `${token}:${i}`;
+          const frag = this.getCache(key);
           if (frag) indexResults[token].push(...frag);
         }
       }
     }
 
+    const calcStart = performance.now();
     const patientMatches: Record<string, any> = Object.create(null);
     
     const mustNotRecords = new Set<string>();
@@ -197,6 +429,9 @@ export class QueryEngine {
 
     const processTerms = (terms: string[], isMust: boolean) => {
       for (const term of terms) {
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
         let docs = indexResults[term];
         if (!docs) continue;
 
@@ -266,12 +501,12 @@ export class QueryEngine {
               totalScore: 0,
               registros: {},
               matchedMustTokens: new Set<string>(),
-              matchedTokens: new Set<string>() // NUEVO: Track de todos los tokens
+              matchedTokens: new Set<string>()
             };
           }
           const pm = patientMatches[doc.nhc];
           pm.totalScore += score;
-          pm.matchedTokens.add(term); // Registrar siempre
+          pm.matchedTokens.add(term);
 
           if (isMust) pm.matchedMustTokens.add(term);
           if (!pm.registros[regId]) {
@@ -286,6 +521,11 @@ export class QueryEngine {
     processTerms(uniqueMust, true);
     processTerms(should, false);
 
+    if (signal?.aborted) {
+      throw new DOMException('Search aborted', 'AbortError');
+    }
+
+    const sortStart = performance.now();
     let results: SearchResult[] = [];
     const filterService = filters?.service?.toLowerCase();
 
@@ -324,7 +564,6 @@ export class QueryEngine {
 
       const uniqueTomasCount = new Set(validRegistros.map((r: any) => r.idToma)).size;
       
-      // MEJORA V6.2.5 (Fixed): Si hay términos SHOULD (OR), validar presencia
       if (should.length > 0) {
         const hasAnyShould = validRegistros.some(
           (reg: any) => reg.matchedTokens instanceof Set && should.some(term => reg.matchedTokens.has(term))
@@ -344,10 +583,38 @@ export class QueryEngine {
       });
     }
 
-    return this.applyFiltersAndSort(results);
+    const sortedResults = this.applyFiltersAndSort(results);
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+
+    this.metrics.lastSearchDurationMs = duration;
+    this.metrics.totalSearchTimeMs += duration;
+    this.metrics.searchCount++;
+
+    if (duration > 100) {
+      this.metrics.slowQueriesCount++;
+      console.warn(`[QueryEngine Warning] Slow query detected: "${query}" took ${duration.toFixed(2)}ms. Filters: ${JSON.stringify(filters)}`);
+    }
+
+    if (this.debugProfilingMode) {
+      const parseTime = dbStart - parseStart;
+      const dbTime = calcStart - dbStart;
+      const calcTime = sortStart - calcStart;
+      const sortTime = endTime - sortStart;
+      console.log(`[QueryEngine Profiler] Query: "${query}" | Total: ${duration.toFixed(2)}ms
+  - Parsing/Tokenization: ${parseTime.toFixed(2)}ms
+  - DB Fetch / Cache Check: ${dbTime.toFixed(2)}ms
+  - BM25 calculations: ${calcTime.toFixed(2)}ms
+  - Filtering / Sorting: ${sortTime.toFixed(2)}ms
+  - Cache stats: tokenHits=${cacheHits}, tokenMisses=${cacheMisses}
+  - Memory: ${(this.estimateMemoryFootprint() / 1024 / 1024).toFixed(3)} MB`);
+    }
+
+    this.setQueryCache(cacheKey, sortedResults);
+    return sortedResults;
   }
 
-  private async getAllRecords(filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }): Promise<SearchResult[]> {
+  private async getAllRecords(filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }, signal?: AbortSignal): Promise<SearchResult[]> {
     const results: SearchResult[] = [];
     const nhcs = Object.keys(this.patientSkeletons);
     
@@ -359,6 +626,9 @@ export class QueryEngine {
     const globalLatestSnapshot: Record<string, { idToma: string, maxOrden: number }> = {};
     if (filters?.onlyLatestSnapshot) {
       for (const nhc in this.patientSkeletons) {
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
         const skeleton = this.patientSkeletons[nhc];
         if (!skeleton.tomasMeta) continue;
         let maxD = -Infinity;
@@ -385,6 +655,9 @@ export class QueryEngine {
     }
 
     for (const nhc of nhcs) {
+      if (signal?.aborted) {
+        throw new DOMException('Search aborted', 'AbortError');
+      }
       const skeleton = this.patientSkeletons[nhc];
       let isValidPatient = true;
       let validTomasCount = 0;

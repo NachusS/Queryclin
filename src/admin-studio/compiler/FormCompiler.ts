@@ -30,11 +30,11 @@ export class FormCompiler {
       }
     }
 
-    // 2. Extraer claves estructurales (asumiendo que están en demographics o fijas)
+    // 2. Extraer claves estructurales (dinámicas de demographics con fallback a estándar)
     const keys = {
       nhc: schema.demographics?.nhc || 'N.H.C',
-      idToma: 'Id_Toma', // Fallback estándar
-      ordenToma: 'Orden_Toma', // Fallback estándar
+      idToma: schema.demographics?.idToma || 'Id_Toma',
+      ordenToma: schema.demographics?.ordenToma || 'Orden_Toma',
       fechaToma: schema.demographics?.fechaToma || 'EC_Fecha_Toma'
     };
 

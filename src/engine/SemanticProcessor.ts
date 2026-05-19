@@ -14,6 +14,17 @@ for (const [canonical, variants] of Object.entries(CLINICAL_SYNONYMS)) {
   }
 }
 
+// Pre-calculo de frases multi-palabra ordenadas por longitud descendente para emparejar la más larga primero.
+// Esto evita la re-creación y ordenación en cada llamada a normalize().
+const MULTI_WORD_PHRASES_REGEXES = Array.from(VARIANT_TO_CANONICAL.keys())
+  .filter(k => k.includes(' '))
+  .sort((a, b) => b.length - a.length)
+  .map(phrase => ({
+    phrase,
+    regex: new RegExp(`\\b${phrase}\\b`, 'gi'),
+    canonical: VARIANT_TO_CANONICAL.get(phrase) || ''
+  }));
+
 // Stopwords lingüísticas y clínicas (solo para limpieza, no alteran semántica estructural)
 const STOPWORDS = new Set([
   'de','el','la','y','en','del','los','las','un','una','con','por','para','su','al','lo',
@@ -36,20 +47,11 @@ export class SemanticProcessor {
   public static normalize(text: string): string {
     let normalized = normalizeString(text);
     
-    // MEJORA V6.2.7: Pre-reemplazo de frases multi-palabra conocidas
-    // Ordenamos por longitud descendente para emparejar la frase más larga primero
-    const phrases = Array.from(VARIANT_TO_CANONICAL.keys())
-      .filter(k => k.includes(' '))
-      .sort((a, b) => b.length - a.length);
-
-    for (const phrase of phrases) {
-      if (normalized.includes(phrase)) {
-        const canonical = VARIANT_TO_CANONICAL.get(phrase);
-        if (canonical) {
-          // Reemplazamos con un espacio alrededor para evitar pegarse a otras palabras
-          const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
-          normalized = normalized.replace(regex, ` ${canonical} `);
-        }
+    // Pre-reemplazo de frases multi-palabra conocidas usando la lista estática optimizada
+    for (let i = 0; i < MULTI_WORD_PHRASES_REGEXES.length; i++) {
+      const entry = MULTI_WORD_PHRASES_REGEXES[i];
+      if (normalized.includes(entry.phrase)) {
+        normalized = normalized.replace(entry.regex, ` ${entry.canonical} `);
       }
     }
     

@@ -1,4 +1,4 @@
-import { HCEData, Patient } from '../core/types';
+import { Patient } from '../core/types';
 import { db } from '../storage/indexedDB';
 import { FormMapping } from '../core/mappings';
 import { parseClinicalDate } from '../utils/dateParser';

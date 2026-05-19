@@ -18,7 +18,7 @@ export default function HighlightedText({ text, query }: HighlightedTextProps) {
   return (
     <>
       {parts.map((part, index) => 
-        pattern.test(part) ? (
+        index % 2 === 1 ? (
           <mark key={index} className="highlight-match">
             {part}
           </mark>

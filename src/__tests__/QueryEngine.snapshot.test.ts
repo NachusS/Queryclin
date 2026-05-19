@@ -73,8 +73,16 @@ describe('QueryEngine - Modo "Última Toma" (Snapshot Mode)', () => {
         nhc: 'NHC_A',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2023-01-01', HALLAZGO: 'NORMAL' } }] },
-          'T2': { idToma: 'T2', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2023-01-01', HALLAZGO: 'NORMAL' } }],
+            latest: { ordenToma: 1, data: { FECHA_TOMA: '2023-01-01', HALLAZGO: 'NORMAL' } }
+          },
+          'T2': { 
+            idToma: 'T2', 
+            registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'DIABETES' } }
+          }
         }
       }
     });
@@ -90,8 +98,16 @@ describe('QueryEngine - Modo "Última Toma" (Snapshot Mode)', () => {
         nhc: 'NHC_B',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2023-01-01', HALLAZGO: 'DIABETES' } }] },
-          'T2': { idToma: 'T2', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'ASMA' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2023-01-01', HALLAZGO: 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA_TOMA: '2023-01-01', HALLAZGO: 'DIABETES' } }
+          },
+          'T2': { 
+            idToma: 'T2', 
+            registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'ASMA' } }],
+            latest: { ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'ASMA' } }
+          }
         }
       }
     });
@@ -117,7 +133,8 @@ describe('QueryEngine - Modo "Última Toma" (Snapshot Mode)', () => {
             registros: [
               { ordenToma: 1, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'DIABETES' } },
               { ordenToma: 2, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'CONTROL NORMAL' } }
-            ] 
+            ],
+            latest: { ordenToma: 2, data: { FECHA_TOMA: '2024-01-01', HALLAZGO: 'CONTROL NORMAL' } }
           }
         }
       }
@@ -134,8 +151,16 @@ describe('QueryEngine - Modo "Última Toma" (Snapshot Mode)', () => {
         nhc: 'NHC_D',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2023-05-01', HALLAZGO: 'COVID' } }] },
-          'T2': { idToma: 'T2', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-05-01', HALLAZGO: 'COVID' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2023-05-01', HALLAZGO: 'COVID' } }],
+            latest: { ordenToma: 1, data: { FECHA_TOMA: '2023-05-01', HALLAZGO: 'COVID' } }
+          },
+          'T2': { 
+            idToma: 'T2', 
+            registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-05-01', HALLAZGO: 'COVID' } }],
+            latest: { ordenToma: 1, data: { FECHA_TOMA: '2024-05-01', HALLAZGO: 'COVID' } }
+          }
         }
       }
     });
@@ -155,8 +180,8 @@ describe('QueryEngine - Modo "Última Toma" (Snapshot Mode)', () => {
 
   it('Caso Consulta Vacía: Debe devolver exactamente 1 resultado por paciente con snapshot activo', async () => {
     await indexData({
-      'P1': { nhc: 'P1', demographics: {}, tomas: { 'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01' } }] } } },
-      'P2': { nhc: 'P2', demographics: {}, tomas: { 'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01' } }] } } }
+      'P1': { nhc: 'P1', demographics: {}, tomas: { 'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01' } }], latest: { ordenToma: 1, data: { FECHA_TOMA: '2024-01-01' } } } } },
+      'P2': { nhc: 'P2', demographics: {}, tomas: { 'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA_TOMA: '2024-01-01' } }], latest: { ordenToma: 1, data: { FECHA_TOMA: '2024-01-01' } } } } }
     });
 
     const results = await queryEngine.search('', { onlyLatestSnapshot: true });

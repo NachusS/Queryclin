@@ -60,8 +60,11 @@ export class SchemaStore {
    */
   async getAllSchemas(): Promise<FormSchema[]> {
     const keys = await db.getAllKeys(db.stores.clinical_schemas);
-    const results = await db.getBatch(db.stores.clinical_schemas, keys);
-    const allSchemas = Object.values(results) as FormSchema[];
+    const schemaKeys = keys.filter(k => !k.startsWith('ACTIVE_VERSION_') && !k.startsWith('RUNTIME_MAPPING_'));
+    const results = await db.getBatch(db.stores.clinical_schemas, schemaKeys);
+    const allSchemas = Object.values(results).filter((s: any) => 
+      s && typeof s === 'object' && 'id' in s && 'sections' in s
+    ) as FormSchema[];
     
     // Agrupar por ID y quedarse con la más reciente
     const latestMap: Record<string, FormSchema> = {};
@@ -121,8 +124,11 @@ export class SchemaStore {
    */
   async getPublishedSchemaByFormName(formName: string): Promise<FormSchema | null> {
     const keys = await db.getAllKeys(db.stores.clinical_schemas);
-    const results = await db.getBatch(db.stores.clinical_schemas, keys);
-    const schemas = Object.values(results) as FormSchema[];
+    const schemaKeys = keys.filter(k => !k.startsWith('ACTIVE_VERSION_') && !k.startsWith('RUNTIME_MAPPING_'));
+    const results = await db.getBatch(db.stores.clinical_schemas, schemaKeys);
+    const schemas = Object.values(results).filter((s: any) => 
+      s && typeof s === 'object' && 'id' in s && 'sections' in s
+    ) as FormSchema[];
     
     return schemas.find(s => s.name === formName && s.status === 'published') || null;
   }
