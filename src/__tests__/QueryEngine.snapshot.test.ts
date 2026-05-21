@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { QueryEngine } from '../engine/QueryEngine';
 import { IndexerService } from '../engine/IndexerService';
 import { Patient } from '../core/types';
@@ -56,6 +56,10 @@ describe('QueryEngine - Modo "Última Toma" (Snapshot Mode)', () => {
 
     queryEngine = new QueryEngine();
     indexerService = new IndexerService();
+  });
+
+  afterEach(() => {
+    queryEngine.stopBackgroundCleanup();
   });
 
   async function indexData(patients: Record<string, Patient>) {

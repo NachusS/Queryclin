@@ -6,11 +6,21 @@ import { normalizeString } from '../utils/stringNormalizer';
 const VARIANT_TO_CANONICAL = new Map<string, string>();
 
 for (const [canonical, variants] of Object.entries(CLINICAL_SYNONYMS)) {
+  const canonicalClean = normalizeString(canonical).replace(/[^a-z0-9]/g, '');
   VARIANT_TO_CANONICAL.set(canonical, canonical); // El canónico se mapea a sí mismo
+  if (canonicalClean !== canonical) {
+    VARIANT_TO_CANONICAL.set(canonicalClean, canonical);
+  }
   for (const variant of variants) {
     // PRESERVAR ESPACIOS para detección de frases multi-palabra
     const normalized = normalizeString(variant);
     VARIANT_TO_CANONICAL.set(normalized, canonical);
+    
+    // Guardar versión compacta (alfanumérica pura) para getCanonical
+    const compacted = normalized.replace(/[^a-z0-9]/g, '');
+    if (compacted !== normalized && compacted.length > 0) {
+      VARIANT_TO_CANONICAL.set(compacted, canonical);
+    }
   }
 }
 
@@ -141,7 +151,8 @@ export class SemanticProcessor {
   public static buildHighlightRegex(query: string): RegExp | null {
     if (!query.trim()) return null;
 
-    const rawTerms = query.split(/\s+/).filter(t => t.length > 1 && !['AND', 'OR', 'NOT'].includes(t.toUpperCase()));
+    const normalizedQuery = this.normalize(query);
+    const rawTerms = [...query.split(/\s+/), ...normalizedQuery.split(/\s+/)].filter(t => t.length > 1 && !['AND', 'OR', 'NOT'].includes(t.toUpperCase()));
     
     const allVariants = new Set<string>();
     

@@ -1,3 +1,43 @@
+## [7.0.3] - V7-PRE-PRODUCTION-HARDENING - 2026-05-21
+### Añadido
+- **Hardening de IndexedDB**: Registro de manejadores `onversionchange` y `onclose` en `indexedDB.ts` para liberar bloqueos y permitir reconexión automática resiliente en entornos de múltiples pestañas.
+- **Gestión de Ciclo de Vida del Worker**: Integración de referencias activas `workerRef` en `App.tsx` para finalizar de forma segura workers huérfanos/obsoletos ante nuevas ingestas o desmontaje del componente principal.
+- **Cancelación de Consultas Concurrentes**: Incorporación de `searchAbortControllerRef` en `App.tsx` para abortar consultas de búsqueda previas en curso si se inicia una nueva consulta (evitando race conditions).
+- **Control Preventivo de Fugas de Estado**: Reset de `termFragmentCounts` a `Object.create(null)` en `loadIndex()` de `QueryEngine.ts` para evitar la retención persistente de conteos huérfanos y adición de guardas defensivas sobre propiedades opcionales del esqueleto.
+
+### Corregido
+- **Fallo de Inicialización de Datos en App**: Corregido un bug crítico introducido por el cual la función `initData()` dentro del `useEffect` de montaje en `App.tsx` no era invocada, impidiendo la restauración de sesión y la carga del índice al recargar el navegador.
+
+### Modificado
+- **Control de Versiones**: Incrementadas las versiones del sistema a la v7.0.3 y de Admin Studio a la v2.0.3-STABLE.
+
+## [7.0.2] - V7-REGRESSION-MITIGATED - 2026-05-21
+### Añadido
+- **Pruebas de Regresión**: Incorporadas pruebas unitarias automatizadas en `QueryEngine.filters.test.ts` para verificar la expansión semántica de sinónimos compuestos y el filtrado por categorías/campos en consultas vacías.
+
+### Corregido
+- **UI Crash al entrar a Admin Studio**: Envoltura de `<AdminRoot>` en un componente `<Suspense>` para evitar excepciones de React 19 debido a la carga diferida (`React.lazy`) sin fallback en el render principal.
+- **Fallo en Sinonimia Multipalabra**: Modificado `SemanticProcessor.ts` para almacenar variantes con doble clave en `VARIANT_TO_CANONICAL`: la versión normalizada con espacios (para las regex complejas de frases) y la compactada alfanumérica (para coincidir con `getCanonical`).
+- **División de Consulta Semántica**: Corregida la fase de parseo en `QueryEngine.ts` para ejecutar la normalización semántica de la consulta completa antes de dividir el texto por espacios en blanco, evitando romper frases multipalabra como "insuficiencia renal cronica".
+- **Filtros en Consultas Vacías**: Añadido almacenamiento de categorías y campos en `tomasMeta` en `IndexerService.ts`, y adaptada la función `getAllRecords` en `QueryEngine.ts` para validar y filtrar según estos criterios, permitiendo que la interfaz filtre tomas sin ingresar texto de búsqueda.
+
+### Modificado
+- **Control de Versiones**: Incrementadas las versiones del sistema a la v7.0.2 y de Admin Studio a la v2.0.2-STABLE.
+
+## [7.0.1] - V7-STABILIZED - 2026-05-21
+### Añadido
+- **Pruebas de Validación de Esquemas**: Implementado un completo suite de pruebas unitarias para `SchemaValidator` en `SchemaValidator.test.ts`.
+
+### Corregido
+- **Fugas de Timer en Tests**: Corregidas las fugas de manejadores de temporizadores en tests mediante la llamada a `stopBackgroundCleanup()` en los ganchos correspondientes.
+- **Robustez de IndexedDB**: Envolvimos la instanciación de transacciones en `indexedDB.ts` y en `SchemaStore.ts` en bloques `try/catch` para evitar fallos por promesas rechazadas no manejadas en IndexedDB.
+- **Efecto de Limpieza de Ingesta**: Reinicio preventivo de `headerMap` en `csv.worker.ts` al comenzar cada ingesta para evitar la contaminación cruzada del mapeado de cabeceras entre ejecuciones en el mismo hilo de trabajo.
+- **Validación Recursiva de Esquemas Clínicos**: Corregida la validación de esquemas en `SchemaValidator.ts` para recolectar de forma recursiva todos los campos y sus hijos (multivalores `$`) en cabeceras (`header`), paneles laterales (`sidebar`), y campos no asignados (`unassignedFields`), comprobando la unicidad de todos los IDs a nivel global del esquema clínico.
+
+### Modificado
+- **Optimización de Lecturas de Base de Datos**: Refactorizado `getAllRuntimeMappings` en `schemaRuntimeSync.ts` para obtener todos los mapeos en una única transacción de lectura por lotes (`db.getBatch`) eliminando lecturas secuenciales O(N).
+- **Actualización de Versiones**: Incrementadas las versiones del sistema a la v7.0.1 (Frontend/Backend) y Admin Query Studio a la v2.0.1-STABLE.
+
 ## [7.0.0] - V7-STABLE - 2026-05-19
 ### Añadido
 - **Producción Estabilizada**: Generados los artefactos documentales definitivos (`FINAL_ARCHITECTURE.md`, `SYSTEM_BLUEPRINT.md`, `DEPLOYMENT_GUIDE.md`, `STABILITY_REPORT.md`, `PERFORMANCE_REPORT.md`, `KNOWN_LIMITATIONS.md`).

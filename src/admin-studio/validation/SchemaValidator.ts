@@ -1,4 +1,4 @@
-import { FormSchema } from '../domain/schema';
+import { FormSchema, Field } from '../domain/schema';
 
 export interface ValidationResult {
   valid: boolean;
@@ -25,28 +25,67 @@ export class SchemaValidator {
     const allFields = this.getAllFields(schema);
     for (const field of allFields) {
       if (!field.sourceField) {
-        errors.push(`Regla 6 (Fidelidad): El campo '${field.label}' no tiene un sourceField asignado. Debe mapear exactamente a una columna del CSV.`);
+        errors.push(`Regla 6 (Fidelidad): El campo '${field.label || field.id}' no tiene un sourceField asignado. Debe mapear exactamente a una columna del CSV.`);
       }
     }
 
     // 3. Unicidad de IDs
     const ids = new Set<string>();
     
-    // Validar IDs de secciones
-    for (const section of schema.sections) {
-      if (ids.has(section.id)) errors.push(`ID de sección duplicado: ${section.id}`);
-      ids.add(section.id);
-      
-      // Validar IDs de grupos
-      for (const group of section.groups) {
-        if (ids.has(group.id)) errors.push(`ID de grupo duplicado: ${group.id}`);
-        ids.add(group.id);
-        
-        // Validar IDs de campos
-        for (const field of group.fields) {
-          if (ids.has(field.id)) errors.push(`ID de campo duplicado: ${field.id}`);
-          ids.add(field.id);
+    // Validar IDs de cabecera
+    if (schema.header) {
+      for (const headerGroup of schema.header) {
+        if (headerGroup.id) {
+          if (ids.has(headerGroup.id)) {
+            errors.push(`ID de grupo de cabecera duplicado: ${headerGroup.id}`);
+          }
+          ids.add(headerGroup.id);
         }
+      }
+    }
+
+    // Validar IDs de barra lateral
+    if (schema.sidebar) {
+      for (const sidebarGroup of schema.sidebar) {
+        if (sidebarGroup.id) {
+          if (ids.has(sidebarGroup.id)) {
+            errors.push(`ID de grupo de barra lateral duplicado: ${sidebarGroup.id}`);
+          }
+          ids.add(sidebarGroup.id);
+        }
+      }
+    }
+
+    // Validar IDs de secciones y sus grupos
+    if (schema.sections) {
+      for (const section of schema.sections) {
+        if (section.id) {
+          if (ids.has(section.id)) {
+            errors.push(`ID de sección duplicado: ${section.id}`);
+          }
+          ids.add(section.id);
+        }
+        
+        if (section.groups) {
+          for (const group of section.groups) {
+            if (group.id) {
+              if (ids.has(group.id)) {
+                errors.push(`ID de grupo duplicado: ${group.id}`);
+              }
+              ids.add(group.id);
+            }
+          }
+        }
+      }
+    }
+
+    // Validar IDs de todos los campos colectados recursivamente
+    for (const field of allFields) {
+      if (field.id) {
+        if (ids.has(field.id)) {
+          errors.push(`ID de campo duplicado: ${field.id}`);
+        }
+        ids.add(field.id);
       }
     }
 
@@ -63,13 +102,15 @@ export class SchemaValidator {
     }
 
     // 5. Advertencias (Warnings)
-    if (schema.sections.length === 0) {
+    if (!schema.sections || schema.sections.length === 0) {
       warnings.push("El esquema no tiene secciones. Se verá vacío.");
     }
 
-    const hasEmptyGroups = schema.sections.some(s => s.groups.some(g => g.fields.length === 0));
-    if (hasEmptyGroups) {
-      warnings.push("Hay grupos sin campos asignados.");
+    if (schema.sections) {
+      const hasEmptyGroups = schema.sections.some(s => s.groups && s.groups.some(g => !g.fields || g.fields.length === 0));
+      if (hasEmptyGroups) {
+        warnings.push("Hay grupos sin campos asignados.");
+      }
     }
 
     return {
@@ -80,18 +121,58 @@ export class SchemaValidator {
   }
 
   /**
-   * Helper para obtener todos los campos del esquema.
+   * Helper para obtener todos los campos del esquema recursivamente.
    */
-  private static getAllFields(schema: FormSchema) {
-    const fields: any[] = [];
-    for (const section of schema.sections) {
-      for (const group of section.groups) {
-        fields.push(...group.fields);
+  private static getAllFields(schema: FormSchema): Field[] {
+    const fields: Field[] = [];
+    
+    // Collect from header
+    if (schema.header) {
+      for (const headerGroup of schema.header) {
+        if (headerGroup.fields) {
+          this.collectFieldsRecursively(headerGroup.fields, fields);
+        }
       }
     }
-    if (schema.unassignedFields) {
-      fields.push(...schema.unassignedFields);
+    
+    // Collect from sidebar
+    if (schema.sidebar) {
+      for (const sidebarGroup of schema.sidebar) {
+        if (sidebarGroup.fields) {
+          this.collectFieldsRecursively(sidebarGroup.fields, fields);
+        }
+      }
     }
+    
+    // Collect from sections
+    if (schema.sections) {
+      for (const section of schema.sections) {
+        if (section.groups) {
+          for (const group of section.groups) {
+            if (group.fields) {
+              this.collectFieldsRecursively(group.fields, fields);
+            }
+          }
+        }
+      }
+    }
+    
+    // Collect from unassignedFields
+    if (schema.unassignedFields) {
+      this.collectFieldsRecursively(schema.unassignedFields, fields);
+    }
+    
     return fields;
+  }
+
+  private static collectFieldsRecursively(fields: Field[], list: Field[]) {
+    if (!fields) return;
+    for (const field of fields) {
+      if (!field) continue;
+      list.push(field);
+      if (field.children) {
+        this.collectFieldsRecursively(field.children, list);
+      }
+    }
   }
 }

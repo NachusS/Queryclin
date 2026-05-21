@@ -15,6 +15,8 @@ self.onmessage = async (e: MessageEvent) => {
     return;
   }
 
+  let headerMap: Record<string, string> = {};
+
   try {
     console.log('[Worker] Iniciando Ingesta Determinista (V6.2.2)...');
     
@@ -40,7 +42,7 @@ self.onmessage = async (e: MessageEvent) => {
         headerMap = buildHeaderMap(record, mapping);
       }
       
-      const normalizedRecord = normalizeRecord(record);
+      const normalizedRecord = normalizeRecord(record, headerMap);
 
       if (totalProcessed === 0) {
         // Validar que las claves estructurales existan (considerando aliases)
@@ -108,7 +110,7 @@ self.onmessage = async (e: MessageEvent) => {
       totalProcessed++;
 
       if (recordsBatch.length >= BATCH_SIZE) {
-        await processBatch(recordsBatch, totalProcessed, mapping);
+        await processBatch(recordsBatch, totalProcessed, mapping, headerMap);
         recordsBatch = [];
         
         self.postMessage({ 
@@ -121,7 +123,7 @@ self.onmessage = async (e: MessageEvent) => {
 
     // Procesar el último lote
     if (recordsBatch.length > 0) {
-      await processBatch(recordsBatch, totalProcessed, mapping);
+      await processBatch(recordsBatch, totalProcessed, mapping, headerMap);
       self.postMessage({ 
         type: 'progress', 
         progress: totalProcessed, 
@@ -154,11 +156,11 @@ self.onmessage = async (e: MessageEvent) => {
 /**
  * Procesa un lote de registros aplicando la transformación determinista
  */
-async function processBatch(records: any[], currentTotal: number, mapping: FormMapping) {
+async function processBatch(records: any[], currentTotal: number, mapping: FormMapping, headerMap: Record<string, string>) {
   if (records.length === 0) return;
 
   // Normalización previa de cabeceras basada en mapa pre-calculado
-  const normalizedRecords = records.map(record => normalizeRecord(record));
+  const normalizedRecords = records.map(record => normalizeRecord(record, headerMap));
 
   const batchNhcs = Array.from(new Set(
     normalizedRecords.map(r => r[mapping.keys.nhc]).filter(Boolean).map(String)
@@ -258,12 +260,10 @@ async function processBatch(records: any[], currentTotal: number, mapping: FormM
   for (const key in batchPatients) delete batchPatients[key];
 }
 
-let headerMap: Record<string, string> = {};
-
 /**
  * Pre-calcula el mapa de cabeceras basándose en el primer registro y los aliases del mapping
  */
-function buildHeaderMap(firstRecord: any, mapping: FormMapping) {
+function buildHeaderMap(firstRecord: any, mapping: FormMapping): Record<string, string> {
   const map: Record<string, string> = {};
   const recordKeys = Object.keys(firstRecord);
   
@@ -296,7 +296,7 @@ function buildHeaderMap(firstRecord: any, mapping: FormMapping) {
 /**
  * Normaliza un registro CSV utilizando el mapa pre-calculado (O(1))
  */
-function normalizeRecord(record: any): any {
+function normalizeRecord(record: any, headerMap: Record<string, string>): any {
   const normalized: any = {};
   for (const key of Object.keys(record)) {
     const canonical = headerMap[key];

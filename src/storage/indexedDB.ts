@@ -65,8 +65,18 @@ export const db = {
         }
       };
       request.onsuccess = () => {
-        this._db = request.result;
-        resolve(request.result);
+        const database = request.result;
+        database.onversionchange = () => {
+          console.warn("[DB] Version change triggered by another tab. Closing connection.");
+          database.close();
+          this._db = null;
+        };
+        database.onclose = () => {
+          console.warn("[DB] Database connection closed unexpectedly.");
+          this._db = null;
+        };
+        this._db = database;
+        resolve(database);
       };
       request.onerror = () => reject(request.error);
     });
@@ -75,57 +85,69 @@ export const db = {
   async saveBatch(storeName: string, items: Record<string, any>): Promise<void> {
     const database = await this.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(storeName, 'readwrite');
-      const store = transaction.objectStore(storeName);
-      
-      for (const key in items) {
-        store.put(items[key], key);
+      try {
+        const transaction = database.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        
+        for (const key in items) {
+          store.put(items[key], key);
+        }
+        
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      } catch (err) {
+        reject(err);
       }
-      
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
     });
   },
 
   async addBatch(storeName: string, items: any[]): Promise<void> {
     const database = await this.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(storeName, 'readwrite');
-      const store = transaction.objectStore(storeName);
-      
-      for (const item of items) {
-        store.add(item);
+      try {
+        const transaction = database.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        
+        for (const item of items) {
+          store.add(item);
+        }
+        
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      } catch (err) {
+        reject(err);
       }
-      
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
     });
   },
 
   async getBatch(storeName: string, keys: string[]): Promise<Record<string, any>> {
     const database = await this.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(storeName, 'readonly');
-      const store = transaction.objectStore(storeName);
-      const results: Record<string, any> = {};
-      let count = 0;
+      try {
+        const transaction = database.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        const results: Record<string, any> = {};
+        let count = 0;
 
-      if (keys.length === 0) return resolve({});
+        if (keys.length === 0) return resolve({});
 
-      keys.forEach(key => {
-        const request = store.get(key);
-        request.onsuccess = () => {
-          if (request.result !== undefined) {
-            results[key] = request.result;
-          }
-          count++;
-          if (count === keys.length) resolve(results);
-        };
-        request.onerror = () => {
-          console.error(`[DB] Error crítico al leer clave "${key}" en ${storeName}:`, request.error);
-          reject(request.error);
-        };
-      });
+        keys.forEach(key => {
+          const request = store.get(key);
+          request.onsuccess = () => {
+            if (request.result !== undefined) {
+              results[key] = request.result;
+            }
+            count++;
+            if (count === keys.length) resolve(results);
+          };
+          request.onerror = () => {
+            console.error(`[DB] Error crítico al leer clave "${key}" en ${storeName}:`, request.error);
+            reject(request.error);
+          };
+        });
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 
@@ -163,27 +185,35 @@ export const db = {
   async getAllByIndex(storeName: string, indexName: string, value: any): Promise<any[]> {
     const database = await this.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(storeName, 'readonly');
-      const store = transaction.objectStore(storeName);
-      const index = store.index(indexName);
-      const request = index.getAll(value);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      try {
+        const transaction = database.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        const index = store.index(indexName);
+        const request = index.getAll(value);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 
   async clear(): Promise<void> {
     const database = await this.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(Object.values(this.stores), 'readwrite');
-      Object.values(this.stores).forEach(s => {
-        transaction.objectStore(s).clear();
-      });
-      transaction.oncomplete = () => {
-        console.log("[DB] Base de datos limpiada íntegramente.");
-        resolve();
-      };
-      transaction.onerror = () => reject(transaction.error);
+      try {
+        const transaction = database.transaction(Object.values(this.stores), 'readwrite');
+        Object.values(this.stores).forEach(s => {
+          transaction.objectStore(s).clear();
+        });
+        transaction.oncomplete = () => {
+          console.log("[DB] Base de datos limpiada íntegramente.");
+          resolve();
+        };
+        transaction.onerror = () => reject(transaction.error);
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 

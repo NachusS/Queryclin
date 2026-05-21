@@ -78,12 +78,22 @@ export class IndexerService {
         const existingMeta = skeleton.tomasMeta[idToma];
         const currentOrden = registro.ordenToma || 0;
         
-        if (!existingMeta || currentOrden > (existingMeta.maxOrden || -1)) {
+        if (!existingMeta) {
           skeleton.tomasMeta[idToma] = { 
-            date: time || (existingMeta?.date), 
-            service: srv || (existingMeta?.service),
-            maxOrden: currentOrden
+            date: time, 
+            service: srv,
+            maxOrden: currentOrden,
+            categories: [],
+            fields: []
           };
+        } else {
+          if (currentOrden > (existingMeta.maxOrden || -1)) {
+            existingMeta.date = time || existingMeta.date;
+            existingMeta.service = srv || existingMeta.service;
+            existingMeta.maxOrden = currentOrden;
+          }
+          if (!existingMeta.categories) existingMeta.categories = [];
+          if (!existingMeta.fields) existingMeta.fields = [];
         }
 
         let docTokens: string[] = [];
@@ -113,6 +123,13 @@ export class IndexerService {
              else if (upperKey.includes('DIAGNÓSTICO') || upperKey.includes('DIAGNOSTICO') || upperKey.includes('TRATAMIENTO') || upperKey.includes('TTO') || upperKey.includes('RECOMENDACIONES')) categoryStr = 'DIAGNOSTICO Y TTO';
              else if (upperKey.includes('RESULTADO') || upperKey.includes('PRUEBA') || upperKey.includes('ANALITICA') || upperKey.includes('ECOGRAFIA')) categoryStr = 'RESULTADOS PRUEBAS';
              else if (upperKey.includes('INGRESO') || upperKey.includes('ALTA') || upperKey.includes('EVOLUCI') || upperKey.includes('HOSPITAL')) categoryStr = 'PROCESO HOSP/CEX';
+           }
+
+           if (!skeleton.tomasMeta[idToma].categories.includes(categoryStr)) {
+             skeleton.tomasMeta[idToma].categories.push(categoryStr);
+           }
+           if (!skeleton.tomasMeta[idToma].fields.includes(key)) {
+             skeleton.tomasMeta[idToma].fields.push(key);
            }
 
            let textToTokenize = String(value);

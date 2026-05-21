@@ -84,12 +84,16 @@ export class SchemaStore {
     const key = this.getVersionedKey(id, version);
     const database = await db.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(db.stores.clinical_schemas, 'readwrite');
-      const store = transaction.objectStore(db.stores.clinical_schemas);
-      const request = store.delete(key);
-      
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      try {
+        const transaction = database.transaction(db.stores.clinical_schemas, 'readwrite');
+        const store = transaction.objectStore(db.stores.clinical_schemas);
+        const request = store.delete(key);
+        
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
@@ -107,15 +111,19 @@ export class SchemaStore {
     
     const database = await db.open();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction(db.stores.clinical_schemas, 'readwrite');
-      const store = transaction.objectStore(db.stores.clinical_schemas);
-      
-      for (const key of schemaKeys) {
-        store.delete(key);
+      try {
+        const transaction = database.transaction(db.stores.clinical_schemas, 'readwrite');
+        const store = transaction.objectStore(db.stores.clinical_schemas);
+        
+        for (const key of schemaKeys) {
+          store.delete(key);
+        }
+        
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      } catch (err) {
+        reject(err);
       }
-      
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
     });
   }
 

@@ -87,8 +87,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 const VERSION = pkg.version;
 const BUILD_DATE = __BUILD_DATE__;
 
-const ADMIN_STUDIO_VERSION = "2.0.0-STABLE";
-const ADMIN_STUDIO_DATE = "19/05/2026, 12:35";
+const ADMIN_STUDIO_VERSION = "2.0.3-STABLE";
+const ADMIN_STUDIO_DATE = "21/05/2026, 09:37";
 
 type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
@@ -135,7 +135,8 @@ export default function App() {
   });
 
   const searchIdRef = useRef(0);
-
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
     const initData = async () => {
@@ -161,6 +162,15 @@ export default function App() {
       }
     };
     initData();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -250,7 +260,14 @@ export default function App() {
         }
       }
 
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+
       const worker = new Worker(new URL('./ingestion/csv.worker.ts', import.meta.url) + '?v=' + Date.now(), { type: 'module' });
+      workerRef.current = worker;
+
       worker.postMessage({ 
         csvText: text, 
         mapping, 
@@ -278,6 +295,9 @@ export default function App() {
           setData({ patients: {} }); 
           setIsProcessing(false);
           setProcessingType(null);
+          if (workerRef.current === worker) {
+            workerRef.current = null;
+          }
           worker.terminate();
 
           setTimeout(async () => {
@@ -293,6 +313,9 @@ export default function App() {
           setDebugLogs(event.data.logs);
           setIsProcessing(false);
           setProcessingType(null);
+          if (workerRef.current === worker) {
+            workerRef.current = null;
+          }
           worker.terminate();
         } else if (type === 'debug_warn') {
           setDebugLogs(prev => [...prev, ...event.data.logs]);
@@ -301,6 +324,9 @@ export default function App() {
           alert("Error crítico durante la ingesta: " + message);
           setIsProcessing(false);
           setProcessingType(null);
+          if (workerRef.current === worker) {
+            workerRef.current = null;
+          }
           worker.terminate();
         }
       };
@@ -309,6 +335,9 @@ export default function App() {
         console.error("Fallo crítico del worker:", err);
         setIsProcessing(false);
         setProcessingType(null);
+        if (workerRef.current === worker) {
+          workerRef.current = null;
+        }
         worker.terminate();
       };
     } catch (err: any) {
@@ -440,6 +469,12 @@ export default function App() {
     setQuery(q);
     setActiveFilters(filters);
     
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    searchAbortControllerRef.current = controller;
+    
     try {
       // Auditoría de Rango: Asegurar que dateStart no sea posterior a dateEnd
       let finalDateRange = filters?.dateRange;
@@ -449,7 +484,7 @@ export default function App() {
         }
       }
 
-      let results = await searchEngine.search(q, { ...filters, dateRange: finalDateRange });
+      let results = await searchEngine.search(q, { ...filters, dateRange: finalDateRange }, controller.signal);
       
       // Guardia de Concurrencia: Si esta ya no es la búsqueda actual, abortamos
       if (currentId !== searchIdRef.current) return;
@@ -589,7 +624,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="h-screen flex flex-col bg-[var(--bg-clinical)] text-[var(--text-primary)] font-sans overflow-hidden">
-        {isAdminMode && <AdminRoot onExit={() => setIsAdminMode(false)} onGoHome={handleGoHome} version={ADMIN_STUDIO_VERSION} buildDate={ADMIN_STUDIO_DATE} />}
+        {isAdminMode && (
+          <Suspense fallback={<FallbackLoader />}>
+            <AdminRoot onExit={() => setIsAdminMode(false)} onGoHome={handleGoHome} version={ADMIN_STUDIO_VERSION} buildDate={ADMIN_STUDIO_DATE} />
+          </Suspense>
+        )}
         <GlobalHeader 
           query={query}
           activeFilters={activeFilters}

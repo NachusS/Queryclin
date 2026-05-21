@@ -49,14 +49,8 @@ export class SchemaRuntimeSync {
     const runtimeKeys = keys.filter(k => k.startsWith(this.RUNTIME_MAPPING_PREFIX));
     console.log('[RuntimeSync] Claves de runtime filtradas:', runtimeKeys);
     
-    const results: any[] = [];
-    for (const key of runtimeKeys) {
-      const mapping = await db.getFromStore(db.stores.clinical_schemas, key);
-      if (mapping) {
-        results.push(mapping);
-      }
-    }
-    return results;
+    const batchResults = await db.getBatch(db.stores.clinical_schemas, runtimeKeys);
+    return Object.values(batchResults);
   }
 }
 

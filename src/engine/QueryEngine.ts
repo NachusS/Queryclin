@@ -199,6 +199,7 @@ export class QueryEngine {
 
   public async loadIndex() {
     this.patientSkeletons = Object.create(null);
+    this.termFragmentCounts = Object.create(null);
     this.clearCache();
     
     console.log("[QueryEngine] Cargando metadatos del índice...");
@@ -278,7 +279,8 @@ export class QueryEngine {
     }
 
     const parseStart = performance.now();
-    const rawTerms = query.split(/\s+/).filter(t => t.length > 0);
+    const normalizedQuery = SemanticProcessor.normalize(query);
+    const rawTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 0);
     const must: string[] = [];
     const mustNot: string[] = [];
     const should: string[] = [];
@@ -401,7 +403,7 @@ export class QueryEngine {
     if (filters?.onlyLatestSnapshot) {
       for (const nhc in this.patientSkeletons) {
         const skeleton = this.patientSkeletons[nhc];
-        if (!skeleton.tomasMeta) continue;
+        if (!skeleton || !skeleton.tomasMeta) continue;
         let maxD = -Infinity;
         let maxId = '';
         let maxOrd = -1;
@@ -621,7 +623,8 @@ export class QueryEngine {
     const filterService = filters?.service?.toLowerCase();
     const filterStart = filters?.dateRange?.[0] ? new Date(`${filters.dateRange[0]}T00:00:00`).getTime() : null;
     const filterEnd = filters?.dateRange?.[1] ? new Date(`${filters.dateRange[1]}T23:59:59`).getTime() : null;
-    const requestedCats = filters?.categories?.map(c => c.toUpperCase().replace(/^\d{2}-/, '').trim()) || [];
+    const requestedCats = filters?.categories?.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim()) || [];
+    const requestedFields = filters?.fields?.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim()) || [];
 
     const globalLatestSnapshot: Record<string, { idToma: string, maxOrden: number }> = {};
     if (filters?.onlyLatestSnapshot) {
@@ -630,7 +633,7 @@ export class QueryEngine {
           throw new DOMException('Search aborted', 'AbortError');
         }
         const skeleton = this.patientSkeletons[nhc];
-        if (!skeleton.tomasMeta) continue;
+        if (!skeleton || !skeleton.tomasMeta) continue;
         let maxD = -Infinity;
         let maxId = '';
         let maxOrd = -1;
@@ -659,11 +662,12 @@ export class QueryEngine {
         throw new DOMException('Search aborted', 'AbortError');
       }
       const skeleton = this.patientSkeletons[nhc];
+      if (!skeleton) continue;
       let isValidPatient = true;
       let validTomasCount = 0;
       let matchingTomas: string[] = [];
       
-      if (filterService || filterStart || filterEnd || requestedCats.length > 0) {
+      if (filterService || filterStart || filterEnd || requestedCats.length > 0 || requestedFields.length > 0) {
          isValidPatient = false;
          if (skeleton.tomasMeta) {
              for (const tomaId in skeleton.tomasMeta) {
@@ -679,8 +683,19 @@ export class QueryEngine {
                      }
                      if (isValidToma && requestedCats.length > 0) {
                         const tomaCats = meta.categories || [];
-                        const hasCatMatch = requestedCats.some(req => tomaCats.some(tc => tc.toUpperCase().includes(req)));
+                        const hasCatMatch = requestedCats.some(req => tomaCats.some(tc => {
+                           const cleanTC = normalizeString(tc).replace(/^\d{2}-/, '').trim();
+                           return cleanTC.includes(req) || req.includes(cleanTC);
+                        }));
                         if (!hasCatMatch) isValidToma = false;
+                     }
+                     if (isValidToma && requestedFields.length > 0) {
+                        const tomaFields = meta.fields || [];
+                        const hasFieldMatch = requestedFields.some(req => tomaFields.some(tf => {
+                           const cleanTF = normalizeString(tf).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+                           return cleanTF === req || normalizeString(tf) === req;
+                        }));
+                        if (!hasFieldMatch) isValidToma = false;
                      }
                  }
                  if (isValidToma) {
