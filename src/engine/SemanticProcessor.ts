@@ -1,31 +1,46 @@
-import { CLINICAL_SYNONYMS, STEM_WHITELIST } from './clinicalSynonyms';
+import { EXACT_SYNONYMS, BROAD_TO_NARROW_SYNONYMS, STEM_WHITELIST } from './clinicalSynonyms';
 import { normalizeString } from '../utils/stringNormalizer';
 
-// Invertir el diccionario de sinónimos para acceso rápido O(1)
-// Variante -> Token Canónico
 const VARIANT_TO_CANONICAL = new Map<string, string>();
+const EXPANSION_MAP = new Map<string, string[]>(); // Canonical -> all valid query expansions
 
-for (const [canonical, variants] of Object.entries(CLINICAL_SYNONYMS)) {
+// 1. Populate EXACT_SYNONYMS (Bidirectional mapping)
+for (const [canonical, variants] of Object.entries(EXACT_SYNONYMS)) {
   const canonicalClean = normalizeString(canonical).replace(/[^a-z0-9]/g, '');
-  VARIANT_TO_CANONICAL.set(canonical, canonical); // El canónico se mapea a sí mismo
+  VARIANT_TO_CANONICAL.set(canonical, canonical);
   if (canonicalClean !== canonical) {
     VARIANT_TO_CANONICAL.set(canonicalClean, canonical);
   }
+  
+  const expansions = new Set<string>([canonical]);
+
   for (const variant of variants) {
     // PRESERVAR ESPACIOS para detección de frases multi-palabra
     const normalized = normalizeString(variant);
     VARIANT_TO_CANONICAL.set(normalized, canonical);
     
-    // Guardar versión compacta (alfanumérica pura) para getCanonical
+    // Guardar versión compacta
     const compacted = normalized.replace(/[^a-z0-9]/g, '');
     if (compacted !== normalized && compacted.length > 0) {
       VARIANT_TO_CANONICAL.set(compacted, canonical);
     }
+    expansions.add(variant);
   }
+  EXPANSION_MAP.set(canonical, Array.from(expansions));
 }
 
-// Pre-calculo de frases multi-palabra ordenadas por longitud descendente para emparejar la más larga primero.
-// Esto evita la re-creación y ordenación en cada llamada a normalize().
+// 2. Populate BROAD_TO_NARROW_SYNONYMS (Unidirectional mapping)
+for (const [broad, narrowTypes] of Object.entries(BROAD_TO_NARROW_SYNONYMS)) {
+   const currentExpansions = EXPANSION_MAP.get(broad) || [broad];
+   for (const narrow of narrowTypes) {
+      currentExpansions.push(narrow);
+      const narrowVariants = EXACT_SYNONYMS[narrow] || [];
+      currentExpansions.push(...narrowVariants);
+   }
+   EXPANSION_MAP.set(broad, Array.from(new Set(currentExpansions)));
+}
+
+// Pre-calculo de frases multi-palabra
 const MULTI_WORD_PHRASES_REGEXES = Array.from(VARIANT_TO_CANONICAL.keys())
   .filter(k => k.includes(' '))
   .sort((a, b) => b.length - a.length)
@@ -35,25 +50,25 @@ const MULTI_WORD_PHRASES_REGEXES = Array.from(VARIANT_TO_CANONICAL.keys())
     canonical: VARIANT_TO_CANONICAL.get(phrase) || ''
   }));
 
-// Stopwords lingüísticas y clínicas (solo para limpieza, no alteran semántica estructural)
+// Stopwords lingüísticas y filler clínico (se eliminaron 'ingreso', 'alta', 'cuadro', 'inicio' por fidelidad contextual)
 const STOPWORDS = new Set([
   'de','el','la','y','en','del','los','las','un','una','con','por','para','su','al','lo',
-  'como','mas','pero','sus','este','esta','se','ha','si','o','entre','cuando','muy','sin',
+  'como','mas','pero','sus','este','esta','se','ha','si','o','entre','cuando','muy', // 'sin' quitado para Negation
   'sobre','tambien','me','hasta','hay','donde','quien','desde','todo','nos','durante',
   'todos','uno','les','ni','contra','otros','ese','eso','ante','ellos','e','esto','mi',
   'antes','algunos','que','unos','yo','otro','otras','otra','el','tanto','esa','estos',
   'mucho','quienes','nada','muchos','cual','poco','ella','estar','estas','algunas','algo',
   'nosotros','mis','tu','te','ti','tus',
   // Clínicas filler
-  'paciente','refiere','presenta','muestra','signos','cuadro','clinico','inicio','hace',
-  'horas','dias','meses','anos','ingreso','alta','relevantes'
+  'paciente','refiere','presenta','muestra','hace',
+  'horas','dias','meses','anos','relevantes'
 ].map(normalizeString));
+
+// Triggers para Negation Shielding (N-grams)
+const NEGATION_TRIGGERS = new Set(['no', 'sin', 'descarta', 'ausencia']);
 
 export class SemanticProcessor {
   
-  /**
-   * Normalización básica (NFD + minúsculas).
-   */
   public static normalize(text: string): string {
     let normalized = normalizeString(text);
     
@@ -68,76 +83,69 @@ export class SemanticProcessor {
     return normalized;
   }
 
-  /**
-   * Obtiene la raíz clínica estricta basada en whitelist.
-   */
   public static getStem(token: any): string {
     if (typeof token !== 'string') return '';
     return STEM_WHITELIST[token] || token;
   }
 
-  /**
-   * Obtiene el token canónico (sinónimo principal) de una variante.
-   */
   public static getCanonical(token: any): string | undefined {
     if (typeof token !== 'string') return undefined;
     const cleanToken = normalizeString(token).replace(/[^a-z0-9]/g, '');
     return VARIANT_TO_CANONICAL.get(cleanToken);
   }
 
-  /**
-   * Expande un token a todas sus variantes semánticas conocidas.
-   * Útil para resaltado o match semántico (no necesario en QueryEngine si ya indexamos canónicos).
-   */
   public static expand(token: string): string[] {
     const canonical = this.getCanonical(token);
-    if (!canonical) return [token];
-
-    const variants = CLINICAL_SYNONYMS[canonical] || [];
-    return [canonical, ...variants];
+    if (canonical && EXPANSION_MAP.has(canonical)) {
+       return EXPANSION_MAP.get(canonical)!;
+    }
+    return [token];
   }
 
-  /**
-   * Tokenizador Clínico Real.
-   * Conserva símbolos vitales y decimales. Expande sinónimos canónicos implícitamente.
-   */
   public static tokenize(text: any): string[] {
     if (typeof text !== 'string' || !text) return [];
     
     const normalized = this.normalize(text);
-    
-    // Regex que captura letras, números, símbolos de unidades y decimales.
-    // Ignora separadores puros como espacios o comas aisladas.
     const rawTokens = normalized.match(/[A-Za-z0-9µ°+\/._-]+/g) || [];
     
     const tokens: string[] = [];
+    let negationWindow = 0;
     
     for (const raw of rawTokens) {
-      // Limpiar bordes de signos de puntuación, pero preservando signos interiores (1.5, Na+)
+      const hasSentenceBoundary = /[.;:!]$/.test(raw);
       let clean = raw.replace(/^[.,_/\-]+|[.,_/\-]+$/g, '');
       if (clean.length < 1) continue;
 
-      if (STOPWORDS.has(clean)) continue;
-      
-      // Aplicar stemming whitelist
-      clean = this.getStem(clean);
-      tokens.push(clean);
+      if (NEGATION_TRIGGERS.has(clean)) {
+        negationWindow = 3; // El escudo de negación cubre los siguientes 3 tokens clínicos
+        continue;
+      }
 
-      // Si tiene un canónico, lo agregamos también para máxima indexación/recuperabilidad
-      const canonical = this.getCanonical(clean);
-      if (canonical && canonical !== clean) {
-        tokens.push(canonical);
+      if (STOPWORDS.has(clean)) {
+        continue; // Las stopwords no consumen ventana de negación
+      }
+      
+      clean = this.getStem(clean);
+      const canonical = this.getCanonical(clean) || clean;
+      
+      if (negationWindow > 0) {
+         tokens.push(`neg_${canonical}`);
+         if (canonical !== clean) tokens.push(`neg_${clean}`);
+         negationWindow--;
+      } else {
+         tokens.push(clean);
+         if (canonical !== clean) tokens.push(canonical);
+      }
+      
+      // Reset negation window if we hit a sentence boundary (like a period or semicolon)
+      if (hasSentenceBoundary) {
+         negationWindow = 0;
       }
     }
 
     return [...new Set(tokens)];
   }
 
-  /**
-   * Match estructural puro. 
-   * Comprueba si ALGÚN token de fieldTokens coincide EXACTAMENTE con el queryToken buscado (o sus expansiones).
-   * No interpreta lógica booleana AND. Sirve para validar si un campo específico contiene una palabra.
-   */
   public static match(fieldValue: string, queryToken: string): boolean {
     const fieldTokens = this.tokenize(fieldValue);
     const queryVariants = this.expand(this.getStem(this.normalize(queryToken)));
@@ -145,9 +153,6 @@ export class SemanticProcessor {
     return queryVariants.some(variant => fieldTokens.includes(variant));
   }
 
-  /**
-   * Construye una Expresión Regular para Highlight que cubre todas las variantes semánticas.
-   */
   public static buildHighlightRegex(query: string): RegExp | null {
     if (!query.trim()) return null;
 
@@ -162,21 +167,16 @@ export class SemanticProcessor {
       const normalized = this.normalize(term);
       const stemmed = this.getStem(normalized);
       
-      // Añadir la literal original (sin normalizar)
       allVariants.add(term);
-      // Añadir la raíz
       allVariants.add(stemmed);
       
-      // Añadir variantes canónicas
       const expansions = this.expand(stemmed);
       expansions.forEach(exp => allVariants.add(exp));
     }
 
     if (allVariants.size === 0) return null;
 
-    // Escapar para regex y unir con OR
     const escaped = Array.from(allVariants).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    // Ordenar por longitud descendente para que la regex capture la coincidencia más larga primero
     escaped.sort((a, b) => b.length - a.length);
 
     return new RegExp(`(${escaped.join('|')})`, 'gi');

@@ -221,9 +221,11 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
     if (results.length === 0) return;
     
     // Tarea E2: Generador de Informes / Exportación XLSX Profesional
+    const nhcs = results.map(res => res.nhc);
+    const batch = await db.getBatch(db.stores.patients, nhcs);
     const fullPatients: Patient[] = [];
     for (const res of results) {
-       const p = await db.getFromStore(db.stores.patients, res.nhc);
+       const p = batch[res.nhc];
        if (p) fullPatients.push(p);
     }
     
@@ -287,8 +289,8 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
 
       {/* Lista de Resultados (Layout de Fila Unica) */}
       <div className="flex flex-col gap-2">
-        {visibleResults.map((res, idx) => (
-          <ResultRow key={`res_${res.nhc}_${idx}`} res={res} patient={patientsMap[res.nhc] || null} onSelect={onSelect} />
+        {visibleResults.map((res) => (
+          <ResultRow key={res.nhc} res={res} patient={patientsMap[res.nhc] || null} onSelect={onSelect} />
         ))}
 
         {results.length === 0 && (

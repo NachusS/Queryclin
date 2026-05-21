@@ -264,7 +264,11 @@ export class QueryEngine {
       throw new DOMException('Search aborted', 'AbortError');
     }
 
-    const cacheKey = JSON.stringify({ query: query.trim().toLowerCase(), filters });
+    let filtersKey = '';
+    if (filters) {
+      filtersKey = `${filters.dateRange?.[0]||''}_${filters.dateRange?.[1]||''}_${filters.service||''}_${filters.categories?.join(',')||''}_${filters.fields?.join(',')||''}_${filters.onlyLatestSnapshot?1:0}`;
+    }
+    const cacheKey = `${query.trim().toLowerCase()}|${filtersKey}`;
     const cached = this.getQueryCache(cacheKey);
     if (cached) {
       const endTime = performance.now();
@@ -398,36 +402,47 @@ export class QueryEngine {
 
     const filterStart = filters?.dateRange?.[0] ? new Date(`${filters.dateRange[0]}T00:00:00`).getTime() : null;
     const filterEnd = filters?.dateRange?.[1] ? new Date(`${filters.dateRange[1]}T23:59:59`).getTime() : null;
+    const requestedCats = filters?.categories?.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim()) || [];
+    const requestedFields = filters?.fields?.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim()) || [];
+    
+    const cleanCategoryCache = new Map<string, string>();
+    const cleanFieldCache = new Map<string, string>();
 
-    const globalLatestSnapshot: Record<string, { idToma: string, maxOrden: number }> = {};
-    if (filters?.onlyLatestSnapshot) {
-      for (const nhc in this.patientSkeletons) {
-        const skeleton = this.patientSkeletons[nhc];
-        if (!skeleton || !skeleton.tomasMeta) continue;
-        let maxD = -Infinity;
-        let maxId = '';
-        let maxOrd = -1;
+    const lazySnapshots: Record<string, { idToma: string, maxOrden: number } | null> = {};
+    const getLatestSnapshot = (nhc: string) => {
+      if (lazySnapshots[nhc] !== undefined) return lazySnapshots[nhc];
+      const skeleton = this.patientSkeletons[nhc];
+      if (!skeleton || !skeleton.tomasMeta) {
+        lazySnapshots[nhc] = null;
+        return null;
+      }
+      let maxD = -Infinity;
+      let maxId = '';
+      let maxOrd = -1;
+      for (const id in skeleton.tomasMeta) {
+        const meta = skeleton.tomasMeta[id];
+        if (!meta) continue;
+        if (filterStart && meta.date < filterStart) continue;
+        if (filterEnd && meta.date > filterEnd) continue;
         
-        for (const id in skeleton.tomasMeta) {
-          const meta = skeleton.tomasMeta[id];
-          if (!meta) continue;
-          if (filterStart && meta.date < filterStart) continue;
-          if (filterEnd && meta.date > filterEnd) continue;
-          
-          if (meta.date > maxD) {
-            maxD = meta.date;
+        if (meta.date > maxD) {
+          maxD = meta.date;
+          maxId = id;
+          maxOrd = meta.maxOrden ?? -1;
+        } else if (meta.date === maxD && maxD !== -Infinity) {
+          if (id > maxId) {
             maxId = id;
             maxOrd = meta.maxOrden ?? -1;
-          } else if (meta.date === maxD && maxD !== -Infinity) {
-            if (id > maxId) {
-              maxId = id;
-              maxOrd = meta.maxOrden ?? -1;
-            }
           }
         }
-        if (maxId) globalLatestSnapshot[nhc] = { idToma: maxId, maxOrden: maxOrd };
       }
-    }
+      if (maxId) {
+        lazySnapshots[nhc] = { idToma: maxId, maxOrden: maxOrd };
+        return lazySnapshots[nhc];
+      }
+      lazySnapshots[nhc] = null;
+      return null;
+    };
 
     const processTerms = (terms: string[], isMust: boolean) => {
       for (const term of terms) {
@@ -439,7 +454,7 @@ export class QueryEngine {
 
         if (filters?.onlyLatestSnapshot) {
            docs = docs.filter((d: any) => {
-             const snapshot = globalLatestSnapshot[d.nhc];
+             const snapshot = getLatestSnapshot(d.nhc);
              if (!snapshot) return false;
              if (d.idToma !== snapshot.idToma) return false;
              if (snapshot.maxOrden !== undefined && snapshot.maxOrden !== -1) {
@@ -472,18 +487,24 @@ export class QueryEngine {
           let docCategories: string[] = doc.c || [];
           
           let hasStructuralMatch = true;
-          if (filters?.categories && filters.categories.length > 0) {
-             const requestedCats = filters.categories.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim());
+          if (requestedCats.length > 0) {
              const hasMatch = requestedCats.some(req => docCategories.some(dc => {
-               const cleanDC = normalizeString(dc).replace(/^\d{2}-/, '').trim();
+               let cleanDC = cleanCategoryCache.get(dc);
+               if (cleanDC === undefined) {
+                 cleanDC = normalizeString(dc).replace(/^\d{2}-/, '').trim();
+                 cleanCategoryCache.set(dc, cleanDC);
+               }
                return cleanDC.includes(req) || req.includes(cleanDC);
              }));
              if (!hasMatch) hasStructuralMatch = false;
           }
-          if (filters?.fields && filters.fields.length > 0) {
-             const requestedFields = filters.fields.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim());
+          if (requestedFields.length > 0) {
              const hasMatch = requestedFields.some(req => docCategories.some(dc => {
-               const cleanDC = normalizeString(dc).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+               let cleanDC = cleanFieldCache.get(dc);
+               if (cleanDC === undefined) {
+                 cleanDC = normalizeString(dc).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+                 cleanFieldCache.set(dc, cleanDC);
+               }
                return cleanDC === req || normalizeString(dc) === req;
              }));
              if (!hasMatch) hasStructuralMatch = false;
@@ -626,37 +647,6 @@ export class QueryEngine {
     const requestedCats = filters?.categories?.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim()) || [];
     const requestedFields = filters?.fields?.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim()) || [];
 
-    const globalLatestSnapshot: Record<string, { idToma: string, maxOrden: number }> = {};
-    if (filters?.onlyLatestSnapshot) {
-      for (const nhc in this.patientSkeletons) {
-        if (signal?.aborted) {
-          throw new DOMException('Search aborted', 'AbortError');
-        }
-        const skeleton = this.patientSkeletons[nhc];
-        if (!skeleton || !skeleton.tomasMeta) continue;
-        let maxD = -Infinity;
-        let maxId = '';
-        let maxOrd = -1;
-        for (const id in skeleton.tomasMeta) {
-          const meta = skeleton.tomasMeta[id];
-          if (!meta) continue;
-          if (filterStart && meta.date < filterStart) continue;
-          if (filterEnd && meta.date > filterEnd) continue;
-          if (meta.date > maxD) {
-            maxD = meta.date;
-            maxId = id;
-            maxOrd = meta.maxOrden ?? -1;
-          } else if (meta.date === maxD && maxD !== -Infinity) {
-            if (id > maxId) {
-              maxId = id;
-              maxOrd = meta.maxOrden ?? -1;
-            }
-          }
-        }
-        if (maxId) globalLatestSnapshot[nhc] = { idToma: maxId, maxOrden: maxOrd };
-      }
-    }
-
     for (const nhc of nhcs) {
       if (signal?.aborted) {
         throw new DOMException('Search aborted', 'AbortError');
@@ -666,8 +656,13 @@ export class QueryEngine {
       let isValidPatient = true;
       let validTomasCount = 0;
       let matchingTomas: string[] = [];
+      let maxD = -Infinity;
+      let latestId = '';
+      let latestOrd = -1;
       
-      if (filterService || filterStart || filterEnd || requestedCats.length > 0 || requestedFields.length > 0) {
+      const hasAnyFilter = filterService || filterStart || filterEnd || requestedCats.length > 0 || requestedFields.length > 0;
+      
+      if (hasAnyFilter || filters?.onlyLatestSnapshot) {
          isValidPatient = false;
          if (skeleton.tomasMeta) {
              for (const tomaId in skeleton.tomasMeta) {
@@ -702,6 +697,19 @@ export class QueryEngine {
                     isValidPatient = true;
                     validTomasCount++;
                     matchingTomas.push(tomaId);
+                    
+                    if (filters?.onlyLatestSnapshot && meta.date !== undefined) {
+                       if (meta.date > maxD) {
+                         maxD = meta.date;
+                         latestId = tomaId;
+                         latestOrd = meta.maxOrden ?? -1;
+                       } else if (meta.date === maxD && maxD !== -Infinity) {
+                         if (tomaId > latestId) {
+                           latestId = tomaId;
+                           latestOrd = meta.maxOrden ?? -1;
+                         }
+                       }
+                    }
                  }
              }
          }
@@ -711,13 +719,13 @@ export class QueryEngine {
       
       if (!isValidPatient) continue;
 
-      if (filters?.onlyLatestSnapshot && globalLatestSnapshot[nhc]) {
+      if (filters?.onlyLatestSnapshot && latestId) {
         results.push({
           nhc,
           patient: skeleton,
           totalScore: 1,
           matchingTomasCount: 1,
-          bestMatchUrl: { idToma: globalLatestSnapshot[nhc].idToma, ordenToma: globalLatestSnapshot[nhc].maxOrden },
+          bestMatchUrl: { idToma: latestId, ordenToma: latestOrd },
           matchedRegistros: []
         });
       } else {

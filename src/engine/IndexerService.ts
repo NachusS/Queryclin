@@ -148,7 +148,7 @@ export class IndexerService {
             // Si el valor es una negación clínica, indexamos el token de negación y SALTAMOS los positivos
             if (isNegative) {
                if (!this.negTokenCache[key]) {
-                  this.negTokenCache[key] = 'no_' + key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  this.negTokenCache[key] = 'neg_' + key.toLowerCase().replace(/[^a-z0-9]/g, '');
                }
                docTokens.push(this.negTokenCache[key]);
                // No indexamos los tokens de la palabra clave si está negada en este campo

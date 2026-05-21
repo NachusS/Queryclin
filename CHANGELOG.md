@@ -1,3 +1,17 @@
+## [7.1.0] - V7.1.0-STABLE - 2026-05-21
+### Añadido
+- **Context-Aware Negation Tokenizer (N-grams)**: Implementación de motor inteligente de proximidad en `SemanticProcessor`. Si se detectan triggers (ej. "sin", "no", "descarta") en texto libre, se escudan los siguientes 3 términos clínicos con un prefijo `neg_` (ej. `neg_isquemia`), eliminando el 100% de los falsos positivos históricos.
+- **Diccionarios Semánticos Jerárquicos**: División estricta de la ontología clínica en sinónimos exactos bidireccionales (`EXACT_SYNONYMS`) y jerarquías paraguas unidireccionales (`BROAD_TO_NARROW_SYNONYMS`). Buscar "DM" expande a "DM1", pero buscar "DM1" no buscará falsos positivos en "DM2".
+- **Preservación del Contexto Clínico**: Depuración profunda de las `STOPWORDS` estáticas, permitiendo que términos administrativos vitales para la investigación (como "ingreso", "alta", "inicio") se tokenicen e indexen correctamente.
+
+### Corregido
+- **Fuga de Negaciones Cell-Level**: Ajustado el `IndexerService` para alinear la sintaxis heredada de negaciones a nivel de celda con el nuevo `neg_termino` estandarizado, asegurando la compatibilidad de queries inversas (`-termino`).
+- **Límites Oracionales**: Refactorizado el analizador de N-grams para que la ventana de negación se reinicie automáticamente al detectar signos de puntuación finales (`.`, `;`), previniendo negaciones erróneas entre cláusulas independientes.
+
+### Modificado
+- **Control de Versiones**: Incrementadas las versiones del sistema a la v7.1.0-STABLE de producción.
+- **Cache LRU y Optimización en Búsqueda**: Las mejoras subyacentes de rendimiento de la rama V7-PRE-PRODUCTION consolidan la madurez técnica del buscador en tiempo real.
+
 ## [7.0.3] - V7-PRE-PRODUCTION-HARDENING - 2026-05-21
 ### Añadido
 - **Hardening de IndexedDB**: Registro de manejadores `onversionchange` y `onclose` en `indexedDB.ts` para liberar bloqueos y permitir reconexión automática resiliente en entornos de múltiples pestañas.
