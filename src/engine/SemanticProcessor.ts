@@ -179,7 +179,9 @@ export class SemanticProcessor {
     const escaped = Array.from(allVariants).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     escaped.sort((a, b) => b.length - a.length);
 
-    return new RegExp(`\\b(${escaped.join('|')})\\b`, 'gi');
+    // Usamos lookbehinds y lookaheads para soportar letras con tildes y eñes como límites de palabra, 
+    // reemplazando el \b estándar que falla con "caída".
+    return new RegExp(`(?<=^|[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ])(${escaped.join('|')})(?=[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]|$)`, 'gi');
   }
 
 }

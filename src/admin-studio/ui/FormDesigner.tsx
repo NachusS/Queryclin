@@ -74,7 +74,7 @@ function DroppableGroup({ group, children, isSelected, onClick, onDelete }: { gr
     <div 
       ref={setNodeRef} 
       onClick={onClick}
-      className={`relative group bg-[var(--surface-clinical)] border-2 rounded-3xl p-6 mb-4 transition-all duration-300 ${isOver ? 'border-[var(--accent-clinical)] bg-[var(--accent-clinical)]/5 scale-[1.01] shadow-2xl' : isSelected ? 'border-[var(--accent-clinical)] bg-[var(--accent-clinical)]/5 ring-4 ring-[var(--accent-clinical)]/5' : 'border-[var(--border-clinical)]/50 hover:border-[var(--border-clinical)]'}`}
+      className={`relative group bg-[var(--surface-clinical)] border-2 rounded-3xl p-6 mb-4 transition-all duration-300 select-none touch-none ${isOver ? 'border-[var(--accent-clinical)] bg-[var(--accent-clinical)]/5 scale-[1.01] shadow-2xl' : isSelected ? 'border-[var(--accent-clinical)] bg-[var(--accent-clinical)]/5 ring-4 ring-[var(--accent-clinical)]/5' : 'border-[var(--border-clinical)]/50 hover:border-[var(--border-clinical)]'}`}
     >
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-3">

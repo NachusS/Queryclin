@@ -50,7 +50,7 @@ export function ImportWizard({ onComplete }: { onComplete: (schemaId: string) =>
         Creador Automático de Plantillas
       </h1>
       <p className="text-sm text-slate-500 mb-6 pb-4 border-b border-emerald-500">
-        <strong className="text-amber-600">Nota aclaratoria:</strong> Esta herramienta sirve exclusivamente para crear un <strong>Esquema o Formulario Nuevo</strong> leyendo las cabeceras de un archivo vacío. Si deseas importar pacientes y datos a tu base de datos, utiliza el botón "Ingestar Datos" desde la pantalla de inicio principal.
+        Analiza un archivo Excel o CSV para auto-generar un formulario clínico a medida.
       </p>
 
       {step === 1 && (
