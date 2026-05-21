@@ -179,7 +179,7 @@ export class SemanticProcessor {
     const escaped = Array.from(allVariants).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     escaped.sort((a, b) => b.length - a.length);
 
-    return new RegExp(`(${escaped.join('|')})`, 'gi');
+    return new RegExp(`\\b(${escaped.join('|')})\\b`, 'gi');
   }
 
 }

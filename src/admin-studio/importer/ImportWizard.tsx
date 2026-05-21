@@ -46,9 +46,12 @@ export function ImportWizard({ onComplete }: { onComplete: (schemaId: string) =>
 
   return (
     <div className="p-8 max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 mt-8">
-      <h1 className="text-2xl font-black text-slate-800 mb-6 uppercase tracking-wider border-b border-emerald-500 pb-4">
-        Asistente de Importación y Mapping
+      <h1 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-wider">
+        Creador Automático de Plantillas
       </h1>
+      <p className="text-sm text-slate-500 mb-6 pb-4 border-b border-emerald-500">
+        <strong className="text-amber-600">Nota aclaratoria:</strong> Esta herramienta sirve exclusivamente para crear un <strong>Esquema o Formulario Nuevo</strong> leyendo las cabeceras de un archivo vacío. Si deseas importar pacientes y datos a tu base de datos, utiliza el botón "Ingestar Datos" desde la pantalla de inicio principal.
+      </p>
 
       {step === 1 && (
         <div className="flex flex-col gap-4">

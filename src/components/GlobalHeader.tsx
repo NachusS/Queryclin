@@ -168,6 +168,12 @@ export default function GlobalHeader({
                   ))}
                 </div>
               )}
+              
+              {!showSuggestions && hasFilters && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-amber-50 border border-amber-200 rounded-lg py-1.5 px-3 text-center text-[11px] text-amber-700 font-bold shadow-sm z-40 animate-in fade-in slide-in-from-top-2">
+                  ⚠️ Búsqueda restringida. Se están ignorando las áreas clínicas no incluidas en el filtro activo.
+                </div>
+              )}
             </>
           )}
         </div>

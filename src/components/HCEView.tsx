@@ -342,6 +342,7 @@ const TomaTimeline = memo(function TomaTimeline({
   onSelect,
   isHCEALG = false,
   query = '',
+  matchedRegistros = [],
 }: {
   sortedTomas: Toma[];
   activeIndex: number;
@@ -349,18 +350,14 @@ const TomaTimeline = memo(function TomaTimeline({
   onSelect: (tomaIdx: number, versionIdx: number) => void;
   isHCEALG?: boolean;
   query?: string;
+  matchedRegistros?: any[];
 }) {
-  const queryTokens = useMemo(() => 
-    query.toLowerCase().split(/\s+/).filter(t => t.length >= 3),
-    [query]
-  );
-
-  const hasMatch = (data: Record<string, string | string[]>) => {
-    if (queryTokens.length === 0) return false;
-    return Object.values(data).some(val => {
-      const s = String(val).toLowerCase();
-      return queryTokens.some(t => s.includes(t));
-    });
+  const hasMatch = (idToma: string, ordenToma?: number) => {
+    if (!query || query.trim() === '') return false;
+    if (ordenToma !== undefined) {
+      return matchedRegistros?.some(m => String(m.idToma) === String(idToma) && Number(m.ordenToma) === Number(ordenToma)) || false;
+    }
+    return matchedRegistros?.some(m => String(m.idToma) === String(idToma)) || false;
   };
   return (
     <div className="flex flex-col gap-0 sticky top-[180px] max-h-[75vh] overflow-y-auto hide-scrollbar rounded-xl border border-slate-200 shadow-sm bg-white">
@@ -384,7 +381,7 @@ const TomaTimeline = memo(function TomaTimeline({
                   <div className="flex items-center gap-1">
                     <Hash size={11} className="text-slate-500" />
                     {t.idToma}
-                    {t.registros.some(r => hasMatch(r.data)) && (
+                    {hasMatch(t.idToma) && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-1" title="Contiene coincidencias" />
                     )}
                   </div>
@@ -396,7 +393,7 @@ const TomaTimeline = memo(function TomaTimeline({
                 </div>
                 {sortedRegs.map((r, rIdx) => {
                   const isActive = tIdx === activeIndex && rIdx === activeVersionIndex;
-                  const isMatch = hasMatch(r.data);
+                  const isMatch = hasMatch(t.idToma, r.ordenToma);
                   const fecha = extractFecha(r.data);
                   const hora = extractHora(r.data);
                   const orden = r.ordenToma;
@@ -434,7 +431,7 @@ const TomaTimeline = memo(function TomaTimeline({
           }
 
           const isActive = tIdx === activeIndex;
-          const isMatch = hasMatch(t.latest?.data || {});
+          const isMatch = hasMatch(t.idToma, t.latest?.ordenToma);
           const isLatest = tIdx === 0;
           const fecha = extractFecha(t.latest?.data || {});
           const hora = extractHora(t.latest?.data || {});
@@ -876,6 +873,7 @@ export default function HCEView({
             activeVersionIndex={activeVersionIndex}
             isHCEALG={true}
             query={query}
+            matchedRegistros={currentResult?.matchedRegistros}
             onSelect={(tIdx, vIdx) => { 
               onTomaNavigate(tIdx, vIdx); 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 

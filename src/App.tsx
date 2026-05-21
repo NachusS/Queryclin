@@ -223,7 +223,7 @@ export default function App() {
       let text = '';
 
       if (file.name.toLowerCase().endsWith('.xlsx')) {
-        const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, cellFormula: true, dateNF: 'dd/mm/yyyy hh:mm:ss' });
+        const workbook = XLSX.read(buffer, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         
         if (worksheet['!ref']) {
@@ -241,7 +241,7 @@ export default function App() {
           }
         }
         
-        text = XLSX.utils.sheet_to_csv(worksheet, { FS: delimiter || '|', dateNF: 'dd/mm/yyyy hh:mm:ss' });
+        text = XLSX.utils.sheet_to_csv(worksheet, { FS: delimiter || '|', raw: false });
         console.log('[App] Archivo Excel convertido a CSV para procesamiento. Errores rescatados.');
       } else {
         try {

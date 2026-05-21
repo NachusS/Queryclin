@@ -26,7 +26,7 @@ const DraggablePaletteField = React.memo(function DraggablePaletteField({ field 
       ref={setNodeRef} 
       {...listeners} 
       {...attributes}
-      className={`group border border-[var(--border-clinical)] rounded-xl p-3 bg-[var(--surface-clinical)] text-[var(--text-primary)] text-[11px] font-bold uppercase tracking-wider cursor-grab hover:border-[var(--accent-clinical)] transition-all shadow-sm mb-2 ${isDragging ? 'opacity-30' : 'hover:shadow-md'}`}
+      className={`group border border-[var(--border-clinical)] rounded-xl p-3 bg-[var(--surface-clinical)] text-[var(--text-primary)] text-[11px] font-bold uppercase tracking-wider cursor-grab hover:border-[var(--accent-clinical)] transition-all shadow-sm mb-2 select-none touch-none ${isDragging ? 'opacity-30' : 'hover:shadow-md'}`}
       title={field.label}
     >
       <div className="flex items-center justify-between">
