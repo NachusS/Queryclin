@@ -1,5 +1,6 @@
-## [7.1.1] - V7.1.1-STABLE - 2026-05-25
+## [7.2.1] - V7.2.1-STABLE - 2026-05-25
 ### Añadido
+- **Consolidación de Release**: Integración final y endurecimiento de la rama `feature/admin-studio` (Admin Studio, Búsqueda de Frases Exactas y Sincronización de Versiones) hacia `main`.
 - **Centralización de Versiones (SSOT)**: Creación de `src/core/version.ts` y sincronización global en el encabezado de Queryclin, Admin Studio, ayudas e importación para asegurar consistencia visual de la versión.
 - **Resaltado Clínico Omnipresente**: Habilitación del resaltado por términos de búsqueda/sinónimos en todos los campos mediante `DynamicFieldRenderer.tsx` y `DynamicGroupRenderer.tsx` de forma nativa e incondicional.
 - **Desplazamiento Contextual en HCE**: Implementación de scroll automático hacia el primer término clínico resaltado al cargar la vista detallada del paciente (`HCEView.tsx`).

@@ -460,5 +460,13 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **T7. Suite de Pruebas de Búsqueda por Frase**: Desarrollo del archivo de especificación `QueryEngine.phrase.test.ts` con cobertura de los 6 casos de uso clínico obligatorios y validación secuencial libre de colisiones.
 - [Logro]: Queryclin permite búsquedas literales ultra-precisas sin alterar la persistencia física, la base de datos o el motor BM25, conservando el 100% de la compatibilidad hacia atrás en producción.
 
+## 🚀 FASE 41: Consolidación e Integración de Versiones (V7.2.1-STABLE — COMPLETADA ✅)
+- [x] **A70. Centralización de Versiones (SSOT)**: Sincronización del metadato del build y versión de Queryclin y Admin Studio mediante un módulo común (`src/core/version.ts`).
+- [x] **A71. Integridad de Gobernanza**: Alineación de `RULES.md` para reflejar la centralización y corregir inconsistencias del versionado.
+- [x] **U43. Resaltado Omnipresente e incondicional**: Habilitación nativa del resaltado clínico en todos los renderizadores de campos dinámicos e individuales.
+- [x] **U44. Navegación Contextual Avanzada**: Desplazamiento automático al primer fragmento clínico coincidente al abrir una toma de HCE.
+- [x] **T8. Validación y Certificación del Merge**: Ejecución de las suites de prueba unitarias completas, typechecking y builds de producción limpios antes de la consolidación final.
+- [Logro]: Consolidación y merge seguro de la rama `feature/admin-studio` en `main` bajo la versión V7.2.1-STABLE, garantizando cero regresiones, persistencia estable de IndexedDB y tipado estricto certificado.
+
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*

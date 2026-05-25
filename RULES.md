@@ -23,7 +23,8 @@ Este documento contiene las directrices fundamentales e inviolables para el desa
 - **Regla:** El proyecto tiene el nombre oficial y exclusivo de **Queryclin**. No se deben usar nombres anteriores (HCE Core, etc.) en código, comentarios o documentación.
 
 ## 5. Sincronía de Versión (WebApp)
-- **Regla:** Tras cada cierre de fase o solución de fallo crítico, la versión visible en la interfaz (Header) debe incrementarse. La versión se centralizará en `App.tsx`.
+- **Regla:** Tras cada cierre de fase o solución de fallo crítico, la versión visible en la interfaz (Header) debe incrementarse. La versión se centralizará en `src/core/version.ts`.
+- **Procedimiento:** Asegurar que tanto la versión del sistema como la de Admin Studio estén sincronizadas tras cada despliegue relevante.
 
 ## 6. Fidelidad del Dato Clínico
 - **Regla:** Se prohíbe renombrar, traducir o normalizar destructivamente los campos originales del CSV. El sistema debe ser un reflejo exacto de la fuente de datos.
@@ -40,4 +41,4 @@ Este documento contiene las directrices fundamentales e inviolables para el desa
 - **Mantenimiento:** Es obligatorio mantener actualizados estos valores tras cada despliegue o cambio significativo en el módulo correspondiente.
 
 ---
-*Gobernanza Queryclin - V6.5.1*
+*Gobernanza Queryclin - V7.2.1*
