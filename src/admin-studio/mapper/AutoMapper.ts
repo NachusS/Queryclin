@@ -126,6 +126,15 @@ export class AutoMapper {
       }
     }
 
+    const demographics: Record<string, string> = {};
+    for (const col of columns) {
+      const upperCol = col.toUpperCase();
+      if (upperCol === 'N.H.C' || upperCol === 'NHC' || upperCol.includes('NHC')) demographics.nhc = col;
+      if (upperCol.includes('ID_TOMA') || upperCol.includes('IDTOMA') || upperCol === 'ID') demographics.idToma = col;
+      if ((upperCol.includes('ORDEN') || upperCol.includes('SECUENCIA') || upperCol === 'ORD') && (upperCol.includes('TOMA') || upperCol.includes('ORD') || upperCol.includes('SEC'))) demographics.ordenToma = col;
+      if (upperCol.includes('FECHA') || upperCol.includes('DATE')) demographics.fechaToma = col;
+    }
+
     return {
       id: `schema-${Date.now()}`,
       name: formName,
@@ -140,7 +149,8 @@ export class AutoMapper {
       }],
       sidebar: [],
       sections,
-      unassignedFields
+      unassignedFields,
+      demographics
     };
   }
 

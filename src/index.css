@@ -41,19 +41,34 @@
   }
 }
 
-.highlight-match {
-  background-color: #fef08a; /* yellow-200 */
-  color: #1e293b;
-  padding: 0 2px;
-  border-radius: 4px;
-  font-weight: 600;
-  box-shadow: 0 0 0 2px rgba(254, 240, 138, 0.4);
+/* Hybrid Dark Mode: Keep clinical views and headers in light mode */
+.clinical-surface,
+header,
+.clinical-timeline,
+.clinical-report,
+.clinical-narrative {
+  --bg-clinical: #f8fafc !important;
+  --surface-clinical: #ffffff !important;
+  --text-primary: #0f172a !important;
+  --text-secondary: #475569 !important;
+  --accent-clinical: #2563eb !important;
+  --border-clinical: #e2e8f0 !important;
+  --glass-bg: rgba(255, 255, 255, 0.7) !important;
+  --glass-border: rgba(255, 255, 255, 0.4) !important;
 }
 
-.dark .highlight-match {
-  background-color: #ca8a04; /* yellow-600 */
-  color: #ffffff;
-  box-shadow: 0 0 0 2px rgba(202, 138, 4, 0.3);
+.clinical-surface {
+  background: #ffffff;
+  color: #111827;
+}
+
+.highlight-match {
+  background: rgba(255, 208, 0, 0.35) !important;
+  border-radius: 4px;
+  padding-inline: 2px;
+  font-weight: 600;
+  color: inherit !important;
+  box-shadow: 0 0 0 1px rgba(255, 208, 0, 0.2) !important;
 }
 
 /* Smooth transitions for theme toggle */

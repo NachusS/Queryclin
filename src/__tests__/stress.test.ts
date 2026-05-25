@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IndexerService } from '../engine/IndexerService';
 import { QueryEngine } from '../engine/QueryEngine';
 import { Patient } from '../core/types';
@@ -82,6 +82,10 @@ describe('Operational Stress Testing Protocol', () => {
 
     queryEngine = new QueryEngine();
     indexerService = new IndexerService();
+  });
+
+  afterEach(() => {
+    queryEngine.stopBackgroundCleanup();
   });
 
   it('Stress Test - Small Dataset (~500 pacientes)', async () => {

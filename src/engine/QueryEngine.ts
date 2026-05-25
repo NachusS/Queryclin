@@ -1,9 +1,58 @@
-import { HCEData, RegistroToma } from '../core/types';
-import { CLINICAL_SYNONYMS, STEM_WHITELIST } from './clinicalSynonyms';
+import { RegistroToma } from '../core/types';
 import { db } from '../storage/indexedDB';
 import { SemanticProcessor } from './SemanticProcessor';
 import { selectLatestSnapshots } from './selectLatestSnapshots';
 import { normalizeString } from '../utils/stringNormalizer';
+import { Patient } from '../core/types';
+
+interface ParsedNode {
+  text: string;
+  isPhrase: boolean;
+  prefixMinus: boolean;
+}
+
+function parseQueryIntoNodes(query: string): ParsedNode[] {
+  const nodes: ParsedNode[] = [];
+  const regex = /(-)?(?:"([^"]+)"|([^\s"]+))/g;
+  let match;
+  while ((match = regex.exec(query)) !== null) {
+    const hasMinus = !!match[1];
+    const phraseContent = match[2];
+    const normalContent = match[3];
+    
+    if (phraseContent !== undefined) {
+      nodes.push({
+        text: phraseContent,
+        isPhrase: true,
+        prefixMinus: hasMinus
+      });
+    } else if (normalContent !== undefined) {
+      nodes.push({
+        text: normalContent,
+        isPhrase: false,
+        prefixMinus: hasMinus
+      });
+    }
+  }
+  return nodes;
+}
+
+function cleanForPhraseMatch(text: string): string {
+  return normalizeString(text)
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasPhraseMatch(fieldValue: any, cleanPhrase: string): boolean {
+  if (Array.isArray(fieldValue)) {
+    return fieldValue.some(val => hasPhraseMatch(val, cleanPhrase));
+  }
+  if (typeof fieldValue !== 'string') return false;
+  
+  const cleanVal = cleanForPhraseMatch(fieldValue);
+  return cleanVal.includes(cleanPhrase);
+}
 
 // ============================================================
 // OKAPI BM25 — Parámetros de ajuste (V3.9.0)
@@ -30,12 +79,178 @@ export class QueryEngine {
   private documentCount = 0;
   private patientSkeletons: Record<string, any> = Object.create(null);
   private termFragmentCounts: Record<string, number> = Object.create(null);
+  private tokenFragmentsCache: Map<string, any[]> = new Map();
+  private readonly MAX_CACHE_SIZE = 1000;
+
+  private queryCache: Map<string, SearchResult[]> = new Map();
+  private readonly MAX_QUERY_CACHE_SIZE = 100;
+  private debugProfilingMode = false;
+
+  constructor() {
+    this.startBackgroundCleanup();
+  }
+
+  private metrics = {
+    queryCacheHits: 0,
+    queryCacheMisses: 0,
+    tokenCacheHits: 0,
+    tokenCacheMisses: 0,
+    lastSearchDurationMs: 0,
+    totalSearchTimeMs: 0,
+    searchCount: 0,
+    slowQueriesCount: 0
+  };
+
+  public setDebugProfilingMode(enabled: boolean) {
+    this.debugProfilingMode = enabled;
+  }
+
+  public getMetrics() {
+    return {
+      ...this.metrics,
+      tokenCacheSize: this.tokenFragmentsCache.size,
+      queryCacheSize: this.queryCache.size,
+      documentCount: this.documentCount,
+      dictionarySize: this.dictionary.length,
+      estimatedMemoryFootprintBytes: this.estimateMemoryFootprint()
+    };
+  }
+
+  private estimateMemoryFootprint(): number {
+    let bytes = 0;
+    try {
+      const skelStr = JSON.stringify(this.patientSkeletons);
+      bytes += skelStr.length * 2;
+    } catch (_) {}
+
+    try {
+      for (const [key, value] of this.tokenFragmentsCache.entries()) {
+        bytes += key.length * 2;
+        bytes += JSON.stringify(value).length * 2;
+      }
+    } catch (_) {}
+
+    try {
+      for (const [key, value] of this.queryCache.entries()) {
+        bytes += key.length * 2;
+        bytes += JSON.stringify(value).length * 2;
+      }
+    } catch (_) {}
+
+    return bytes;
+  }
+
+  private getQueryCache(key: string): SearchResult[] | undefined {
+    if (this.queryCache.has(key)) {
+      const val = this.queryCache.get(key);
+      this.queryCache.delete(key);
+      this.queryCache.set(key, val!);
+      this.metrics.queryCacheHits++;
+      return val;
+    }
+    this.metrics.queryCacheMisses++;
+    return undefined;
+  }
+
+  private cleanupInterval: number | null = null;
+
+  public startBackgroundCleanup(intervalMs = 60000) {
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+    this.cleanupInterval = setInterval(() => {
+      this.pruneCache();
+    }, intervalMs) as unknown as number;
+    console.log(`[QueryEngine Cache] Background cleanup job registered (Interval: ${intervalMs}ms)`);
+  }
+
+  public stopBackgroundCleanup() {
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+    this.cleanupInterval = null;
+  }
+
+  private pruneCache() {
+    // Prune Query Cache if > 80% full
+    if (this.queryCache.size > this.MAX_QUERY_CACHE_SIZE * 0.8) {
+      let pruned = 0;
+      for (const key of this.queryCache.keys()) {
+        this.queryCache.delete(key);
+        pruned++;
+        if (this.queryCache.size <= this.MAX_QUERY_CACHE_SIZE * 0.5) break;
+      }
+      console.log(`[QueryEngine Cache] Pruned ${pruned} stale queries in background.`);
+    }
+
+    // Prune Token Cache if > 80% full
+    if (this.tokenFragmentsCache.size > this.MAX_CACHE_SIZE * 0.8) {
+      let pruned = 0;
+      for (const key of this.tokenFragmentsCache.keys()) {
+        this.tokenFragmentsCache.delete(key);
+        pruned++;
+        if (this.tokenFragmentsCache.size <= this.MAX_CACHE_SIZE * 0.5) break;
+      }
+      console.log(`[QueryEngine Cache] Pruned ${pruned} stale token fragments in background.`);
+    }
+  }
+
+  private setQueryCache(key: string, value: SearchResult[]) {
+    if (this.queryCache.has(key)) {
+      this.queryCache.delete(key);
+    } else if (this.queryCache.size >= this.MAX_QUERY_CACHE_SIZE) {
+      const firstKey = this.queryCache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.queryCache.delete(firstKey);
+      }
+    }
+    this.queryCache.set(key, value);
+  }
+
+  public clearCache() {
+    this.tokenFragmentsCache.clear();
+    this.queryCache.clear();
+    console.log("[QueryEngine Cache] Cache de fragmentos e historial de queries invalidada y limpiada.");
+  }
+
+  private hasCache(key: string): boolean {
+    if (this.tokenFragmentsCache.has(key)) {
+      const val = this.tokenFragmentsCache.get(key);
+      this.tokenFragmentsCache.delete(key);
+      this.tokenFragmentsCache.set(key, val!);
+      this.metrics.tokenCacheHits++;
+      return true;
+    }
+    this.metrics.tokenCacheMisses++;
+    return false;
+  }
+
+  private getCache(key: string): any[] | undefined {
+    if (this.tokenFragmentsCache.has(key)) {
+      const val = this.tokenFragmentsCache.get(key);
+      this.tokenFragmentsCache.delete(key);
+      this.tokenFragmentsCache.set(key, val!);
+      return val;
+    }
+    return undefined;
+  }
+
+  private setCache(key: string, value: any[]) {
+    if (this.tokenFragmentsCache.has(key)) {
+      this.tokenFragmentsCache.delete(key);
+    } else if (this.tokenFragmentsCache.size >= this.MAX_CACHE_SIZE) {
+      const firstKey = this.tokenFragmentsCache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.tokenFragmentsCache.delete(firstKey);
+      }
+    }
+    this.tokenFragmentsCache.set(key, value);
+  }
+
   /** Longitud media de los documentos indexados (en tokens). Necesaria para BM25. */
   private avgDocLength = 0;
   public dictionary: string[] = [];
 
   public async loadIndex() {
     this.patientSkeletons = Object.create(null);
+    this.termFragmentCounts = Object.create(null);
+    this.clearCache();
     
     console.log("[QueryEngine] Cargando metadatos del índice...");
     
@@ -49,8 +264,6 @@ export class QueryEngine {
       }
 
       this.documentCount = docCount || 0;
-      // BM25: la longitud media se estima como total_tokens / document_count.
-      // Si no está almacenada (datasets anteriores a V3.9.0), se usa un fallback heurístico.
       this.avgDocLength = avgLen || 150;
       console.log(`[QueryEngine] Metadatos BM25 cargados: ${this.documentCount} docs, avgLen=${this.avgDocLength} tokens.`);
       
@@ -83,7 +296,6 @@ export class QueryEngine {
   public getSuggestions(input: string): string[] {
     if (!input || input.length < 3) return [];
     
-    // Usamos el tokenizer para la normalización básica
     const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     return this.dictionary
@@ -91,70 +303,233 @@ export class QueryEngine {
       .slice(0, 8);
   }
 
-  public async search(query: string, filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }): Promise<SearchResult[]> {
-    const rawTerms = query.split(/\s+/).filter(t => t.length > 0);
+  public async search(
+    query: string, 
+    filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean },
+    signal?: AbortSignal
+  ): Promise<SearchResult[]> {
+    const startTime = performance.now();
+    
+    if (signal?.aborted) {
+      throw new DOMException('Search aborted', 'AbortError');
+    }
+
+    let filtersKey = '';
+    if (filters) {
+      filtersKey = `${filters.dateRange?.[0]||''}_${filters.dateRange?.[1]||''}_${filters.service||''}_${filters.categories?.join(',')||''}_${filters.fields?.join(',')||''}_${filters.onlyLatestSnapshot?1:0}`;
+    }
+    const cacheKey = `${query.trim().toLowerCase()}|${filtersKey}`;
+    const cached = this.getQueryCache(cacheKey);
+    if (cached) {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      this.metrics.lastSearchDurationMs = duration;
+      this.metrics.totalSearchTimeMs += duration;
+      this.metrics.searchCount++;
+      if (this.debugProfilingMode) {
+        console.log(`[QueryEngine Profiler] (Cache Hit) "${query}" devuelto en ${duration.toFixed(2)}ms.`);
+      }
+      return cached;
+    }
+
+    const parseStart = performance.now();
     const must: string[] = [];
     const mustNot: string[] = [];
     const should: string[] = [];
+    const phraseChecks: { text: string; isNegative: boolean }[] = [];
 
-    for (let i = 0; i < rawTerms.length; i++) {
-      const originalTerm = rawTerms[i];
-      const termUpper = originalTerm.toUpperCase();
-      const prev = rawTerms[i - 1]?.toUpperCase();
-      const next = rawTerms[i + 1]?.toUpperCase();
-      
-      if (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT') continue;
+    const hasPhrases = query.includes('"');
 
-      // MEJORA V3.9.0: Usar SemanticProcessor
-      const rawTokens = SemanticProcessor.tokenize(originalTerm);
-      const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens; // Tomar el canónico si existe
-      
-      const compact = originalTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
-      if (isCode && compact.length > 3 && !tokens.includes(compact)) {
-        tokens.push(compact);
+    if (!hasPhrases) {
+      const normalizedQuery = SemanticProcessor.normalize(query);
+      const rawTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 0);
+
+      for (let i = 0; i < rawTerms.length; i++) {
+        const originalTerm = rawTerms[i];
+        const termUpper = originalTerm.toUpperCase();
+        const prev = rawTerms[i - 1]?.toUpperCase();
+        const next = rawTerms[i + 1]?.toUpperCase();
+        
+        if (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT') continue;
+
+        const rawTokens = SemanticProcessor.tokenize(originalTerm);
+        const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens;
+        
+        const compact = originalTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
+        if (isCode && compact.length > 3 && !tokens.includes(compact)) {
+          tokens.push(compact);
+        }
+        
+        if (tokens.length === 0) continue;
+        
+        if (prev === 'NOT' || originalTerm.startsWith('-')) {
+          mustNot.push(...tokens);
+        } else if (next === 'OR' || prev === 'OR') {
+          should.push(...tokens);
+        } else {
+          must.push(...tokens);
+        }
       }
-      
-      if (tokens.length === 0) continue;
-      
-      if (prev === 'NOT' || originalTerm.startsWith('-')) {
-        mustNot.push(...tokens);
-      } else if (next === 'OR' || prev === 'OR') {
-        should.push(...tokens);
-      } else {
-        must.push(...tokens);
+    } else {
+      const nodes = parseQueryIntoNodes(query);
+
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const termUpper = node.text.toUpperCase();
+        
+        if (!node.isPhrase && (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT')) {
+          continue;
+        }
+        
+        const prevNode = i > 0 ? nodes[i - 1] : null;
+        const nextNode = i < nodes.length - 1 ? nodes[i + 1] : null;
+        
+        const prevUpper = prevNode && !prevNode.isPhrase ? prevNode.text.toUpperCase() : null;
+        const nextUpper = nextNode && !nextNode.isPhrase ? nextNode.text.toUpperCase() : null;
+        
+        const isNegated = node.prefixMinus || prevUpper === 'NOT';
+        const isOr = prevUpper === 'OR' || nextUpper === 'OR';
+
+        if (node.isPhrase) {
+          phraseChecks.push({ text: node.text, isNegative: isNegated });
+          if (!isNegated) {
+            const phraseTokens = SemanticProcessor.tokenize(node.text);
+            if (isOr) {
+              should.push(...phraseTokens);
+            } else {
+              must.push(...phraseTokens);
+            }
+          }
+        } else {
+          const rawTokens = SemanticProcessor.tokenize(node.text);
+          const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens;
+          
+          const compact = node.text.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
+          if (isCode && compact.length > 3 && !tokens.includes(compact)) {
+            tokens.push(compact);
+          }
+          
+          if (tokens.length === 0) continue;
+          
+          if (isNegated) {
+            mustNot.push(...tokens);
+          } else if (isOr) {
+            should.push(...tokens);
+          } else {
+            must.push(...tokens);
+          }
+        }
       }
     }
 
     const uniqueMust = Array.from(new Set(must));
 
-    if (must.length === 0 && should.length === 0) return await this.getAllRecords(filters);
+    if (must.length === 0 && should.length === 0) {
+      if (phraseChecks.length === 0) {
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
+        const allResults = await this.getAllRecords(filters, signal);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        this.metrics.lastSearchDurationMs = duration;
+        this.metrics.totalSearchTimeMs += duration;
+        this.metrics.searchCount++;
+        
+        if (duration > 100) {
+          this.metrics.slowQueriesCount++;
+          console.warn(`[QueryEngine Warning] Slow query detected: "${query}" took ${duration.toFixed(2)}ms.`);
+        }
+        
+        this.setQueryCache(cacheKey, allResults);
+        return allResults;
+      }
+    }
 
     const allQueryTokens = Array.from(new Set([...uniqueMust, ...should, ...mustNot]));
     const indexResults: Record<string, any[]> = Object.create(null);
+    let cacheHits = 0;
+    let cacheMisses = 0;
     
+    const dbStart = performance.now();
     if (allQueryTokens.length > 0) {
       const allFragmentKeys: string[] = [];
+      const keysToFetch: string[] = [];
+      
       for (const token of allQueryTokens) {
         const count = this.termFragmentCounts[token] || 0;
         for (let i = 0; i < count; i++) {
-          allFragmentKeys.push(`${token}:${i}`);
+          const key = `${token}:${i}`;
+          allFragmentKeys.push(key);
+          if (this.hasCache(key)) {
+            cacheHits++;
+          } else {
+            cacheMisses++;
+            keysToFetch.push(key);
+          }
         }
       }
       
-      const fragments = await db.getBatch(db.stores.search_index, allFragmentKeys);
+      if (signal?.aborted) {
+        throw new DOMException('Search aborted', 'AbortError');
+      }
+      
+      let fetchedFragments: Record<string, any[]> = {};
+      if (keysToFetch.length > 0) {
+        fetchedFragments = await db.getBatch(db.stores.search_index, keysToFetch);
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
+        for (const key of keysToFetch) {
+          if (fetchedFragments[key]) {
+            this.setCache(key, fetchedFragments[key]);
+          }
+        }
+      }
       
       for (const token of allQueryTokens) {
         indexResults[token] = [];
         const count = this.termFragmentCounts[token] || 0;
         for (let i = 0; i < count; i++) {
-          const frag = fragments[`${token}:${i}`];
+          const key = `${token}:${i}`;
+          const frag = this.getCache(key);
           if (frag) indexResults[token].push(...frag);
         }
       }
     }
 
+    const calcStart = performance.now();
     const patientMatches: Record<string, any> = Object.create(null);
+    
+    if (must.length === 0 && should.length === 0 && phraseChecks.length > 0) {
+      for (const nhc in this.patientSkeletons) {
+        const skeleton = this.patientSkeletons[nhc];
+        if (!skeleton || !skeleton.tomasMeta) continue;
+        
+        patientMatches[nhc] = {
+          nhc,
+          totalScore: 1.0,
+          registros: {},
+          matchedMustTokens: new Set<string>(),
+          matchedTokens: new Set<string>()
+        };
+        for (const idToma in skeleton.tomasMeta) {
+          const meta = skeleton.tomasMeta[idToma];
+          const maxOrd = meta.maxOrden ?? 0;
+          for (let ord = 0; ord <= maxOrd; ord++) {
+            const regId = `${idToma}_${ord}`;
+            patientMatches[nhc].registros[regId] = {
+              idToma,
+              ordenToma: ord,
+              score: 1.0,
+              matchedTokens: new Set<string>()
+            };
+          }
+        }
+      }
+    }
     
     const mustNotRecords = new Set<string>();
     for (const term of mustNot) {
@@ -164,45 +539,59 @@ export class QueryEngine {
 
     const filterStart = filters?.dateRange?.[0] ? new Date(`${filters.dateRange[0]}T00:00:00`).getTime() : null;
     const filterEnd = filters?.dateRange?.[1] ? new Date(`${filters.dateRange[1]}T23:59:59`).getTime() : null;
+    const requestedCats = filters?.categories?.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim()) || [];
+    const requestedFields = filters?.fields?.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim()) || [];
+    
+    const cleanCategoryCache = new Map<string, string>();
+    const cleanFieldCache = new Map<string, string>();
 
-    const globalLatestSnapshot: Record<string, { idToma: string, maxOrden: number }> = {};
-    if (filters?.onlyLatestSnapshot) {
-      for (const nhc in this.patientSkeletons) {
-        const skeleton = this.patientSkeletons[nhc];
-        if (!skeleton.tomasMeta) continue;
-        let maxD = -Infinity;
-        let maxId = '';
-        let maxOrd = -1;
+    const lazySnapshots: Record<string, { idToma: string, maxOrden: number } | null> = {};
+    const getLatestSnapshot = (nhc: string) => {
+      if (lazySnapshots[nhc] !== undefined) return lazySnapshots[nhc];
+      const skeleton = this.patientSkeletons[nhc];
+      if (!skeleton || !skeleton.tomasMeta) {
+        lazySnapshots[nhc] = null;
+        return null;
+      }
+      let maxD = -Infinity;
+      let maxId = '';
+      let maxOrd = -1;
+      for (const id in skeleton.tomasMeta) {
+        const meta = skeleton.tomasMeta[id];
+        if (!meta) continue;
+        if (filterStart && meta.date < filterStart) continue;
+        if (filterEnd && meta.date > filterEnd) continue;
         
-        for (const id in skeleton.tomasMeta) {
-          const meta = skeleton.tomasMeta[id];
-          if (!meta) continue;
-          if (filterStart && meta.date < filterStart) continue;
-          if (filterEnd && meta.date > filterEnd) continue;
-          
-          if (meta.date > maxD) {
-            maxD = meta.date;
+        if (meta.date > maxD) {
+          maxD = meta.date;
+          maxId = id;
+          maxOrd = meta.maxOrden ?? -1;
+        } else if (meta.date === maxD && maxD !== -Infinity) {
+          if (id > maxId) {
             maxId = id;
             maxOrd = meta.maxOrden ?? -1;
-          } else if (meta.date === maxD && maxD !== -Infinity) {
-            if (id > maxId) {
-              maxId = id;
-              maxOrd = meta.maxOrden ?? -1;
-            }
           }
         }
-        if (maxId) globalLatestSnapshot[nhc] = { idToma: maxId, maxOrden: maxOrd };
       }
-    }
+      if (maxId) {
+        lazySnapshots[nhc] = { idToma: maxId, maxOrden: maxOrd };
+        return lazySnapshots[nhc];
+      }
+      lazySnapshots[nhc] = null;
+      return null;
+    };
 
     const processTerms = (terms: string[], isMust: boolean) => {
       for (const term of terms) {
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
         let docs = indexResults[term];
         if (!docs) continue;
 
         if (filters?.onlyLatestSnapshot) {
            docs = docs.filter((d: any) => {
-             const snapshot = globalLatestSnapshot[d.nhc];
+             const snapshot = getLatestSnapshot(d.nhc);
              if (!snapshot) return false;
              if (d.idToma !== snapshot.idToma) return false;
              if (snapshot.maxOrden !== undefined && snapshot.maxOrden !== -1) {
@@ -235,18 +624,24 @@ export class QueryEngine {
           let docCategories: string[] = doc.c || [];
           
           let hasStructuralMatch = true;
-          if (filters?.categories && filters.categories.length > 0) {
-             const requestedCats = filters.categories.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim());
+          if (requestedCats.length > 0) {
              const hasMatch = requestedCats.some(req => docCategories.some(dc => {
-               const cleanDC = normalizeString(dc).replace(/^\d{2}-/, '').trim();
+               let cleanDC = cleanCategoryCache.get(dc);
+               if (cleanDC === undefined) {
+                 cleanDC = normalizeString(dc).replace(/^\d{2}-/, '').trim();
+                 cleanCategoryCache.set(dc, cleanDC);
+               }
                return cleanDC.includes(req) || req.includes(cleanDC);
              }));
              if (!hasMatch) hasStructuralMatch = false;
           }
-          if (filters?.fields && filters.fields.length > 0) {
-             const requestedFields = filters.fields.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim());
+          if (requestedFields.length > 0) {
              const hasMatch = requestedFields.some(req => docCategories.some(dc => {
-               const cleanDC = normalizeString(dc).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+               let cleanDC = cleanFieldCache.get(dc);
+               if (cleanDC === undefined) {
+                 cleanDC = normalizeString(dc).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+                 cleanFieldCache.set(dc, cleanDC);
+               }
                return cleanDC === req || normalizeString(dc) === req;
              }));
              if (!hasMatch) hasStructuralMatch = false;
@@ -266,12 +661,12 @@ export class QueryEngine {
               totalScore: 0,
               registros: {},
               matchedMustTokens: new Set<string>(),
-              matchedTokens: new Set<string>() // NUEVO: Track de todos los tokens
+              matchedTokens: new Set<string>()
             };
           }
           const pm = patientMatches[doc.nhc];
           pm.totalScore += score;
-          pm.matchedTokens.add(term); // Registrar siempre
+          pm.matchedTokens.add(term);
 
           if (isMust) pm.matchedMustTokens.add(term);
           if (!pm.registros[regId]) {
@@ -286,14 +681,28 @@ export class QueryEngine {
     processTerms(uniqueMust, true);
     processTerms(should, false);
 
+    if (signal?.aborted) {
+      throw new DOMException('Search aborted', 'AbortError');
+    }
+
+    const sortStart = performance.now();
     let results: SearchResult[] = [];
     const filterService = filters?.service?.toLowerCase();
 
-    for (const nhc in patientMatches) {
+    const candidateNhcs = Object.keys(patientMatches).filter(nhc => {
+      const pm = patientMatches[nhc];
+      if (uniqueMust.length > 0 && pm.matchedMustTokens.size < uniqueMust.length) return false;
+      return Object.keys(pm.registros).length > 0;
+    });
+
+    let patientsData: Record<string, Patient> = {};
+    if (phraseChecks.length > 0 && candidateNhcs.length > 0) {
+      patientsData = await db.getBatch(db.stores.patients, candidateNhcs);
+    }
+
+    for (const nhc of candidateNhcs) {
       const pm = patientMatches[nhc];
       const skeleton = this.patientSkeletons[nhc];
-
-      if (uniqueMust.length > 0 && pm.matchedMustTokens.size < uniqueMust.length) continue;
 
       const flatRegistros = Object.values(pm.registros).sort((a: any, b: any) => b.score - a.score);
       if (flatRegistros.length === 0) continue;
@@ -310,6 +719,33 @@ export class QueryEngine {
               if (filterEnd && meta.date > filterEnd) return false;
            }
         }
+
+        if (phraseChecks.length > 0) {
+          const patientData = patientsData[nhc];
+          if (!patientData) return false;
+          
+          const toma = patientData.tomas?.[reg.idToma];
+          const registro = toma?.registros?.find((r: any) => r.ordenToma === reg.ordenToma);
+          if (!registro) return false;
+          
+          for (const check of phraseChecks) {
+            const cleanPhrase = cleanForPhraseMatch(check.text);
+            let found = false;
+            for (const value of Object.values(registro.data)) {
+              if (hasPhraseMatch(value, cleanPhrase)) {
+                found = true;
+                break;
+              }
+            }
+            if (check.isNegative) {
+              if (found) return false;
+            } else {
+              if (!found) return false;
+            }
+          }
+          reg.record = registro;
+        }
+
         return true;
       });
 
@@ -324,7 +760,6 @@ export class QueryEngine {
 
       const uniqueTomasCount = new Set(validRegistros.map((r: any) => r.idToma)).size;
       
-      // MEJORA V6.2.5 (Fixed): Si hay términos SHOULD (OR), validar presencia
       if (should.length > 0) {
         const hasAnyShould = validRegistros.some(
           (reg: any) => reg.matchedTokens instanceof Set && should.some(term => reg.matchedTokens.has(term))
@@ -344,53 +779,63 @@ export class QueryEngine {
       });
     }
 
-    return this.applyFiltersAndSort(results);
+    const sortedResults = this.applyFiltersAndSort(results);
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+
+    this.metrics.lastSearchDurationMs = duration;
+    this.metrics.totalSearchTimeMs += duration;
+    this.metrics.searchCount++;
+
+    if (duration > 100) {
+      this.metrics.slowQueriesCount++;
+      console.warn(`[QueryEngine Warning] Slow query detected: "${query}" took ${duration.toFixed(2)}ms. Filters: ${JSON.stringify(filters)}`);
+    }
+
+    if (this.debugProfilingMode) {
+      const parseTime = dbStart - parseStart;
+      const dbTime = calcStart - dbStart;
+      const calcTime = sortStart - calcStart;
+      const sortTime = endTime - sortStart;
+      console.log(`[QueryEngine Profiler] Query: "${query}" | Total: ${duration.toFixed(2)}ms
+  - Parsing/Tokenization: ${parseTime.toFixed(2)}ms
+  - DB Fetch / Cache Check: ${dbTime.toFixed(2)}ms
+  - BM25 calculations: ${calcTime.toFixed(2)}ms
+  - Filtering / Sorting: ${sortTime.toFixed(2)}ms
+  - Cache stats: tokenHits=${cacheHits}, tokenMisses=${cacheMisses}
+  - Memory: ${(this.estimateMemoryFootprint() / 1024 / 1024).toFixed(3)} MB`);
+    }
+
+    this.setQueryCache(cacheKey, sortedResults);
+    return sortedResults;
   }
 
-  private async getAllRecords(filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }): Promise<SearchResult[]> {
+  private async getAllRecords(filters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean }, signal?: AbortSignal): Promise<SearchResult[]> {
     const results: SearchResult[] = [];
     const nhcs = Object.keys(this.patientSkeletons);
     
     const filterService = filters?.service?.toLowerCase();
     const filterStart = filters?.dateRange?.[0] ? new Date(`${filters.dateRange[0]}T00:00:00`).getTime() : null;
     const filterEnd = filters?.dateRange?.[1] ? new Date(`${filters.dateRange[1]}T23:59:59`).getTime() : null;
-    const requestedCats = filters?.categories?.map(c => c.toUpperCase().replace(/^\d{2}-/, '').trim()) || [];
-
-    const globalLatestSnapshot: Record<string, { idToma: string, maxOrden: number }> = {};
-    if (filters?.onlyLatestSnapshot) {
-      for (const nhc in this.patientSkeletons) {
-        const skeleton = this.patientSkeletons[nhc];
-        if (!skeleton.tomasMeta) continue;
-        let maxD = -Infinity;
-        let maxId = '';
-        let maxOrd = -1;
-        for (const id in skeleton.tomasMeta) {
-          const meta = skeleton.tomasMeta[id];
-          if (!meta) continue;
-          if (filterStart && meta.date < filterStart) continue;
-          if (filterEnd && meta.date > filterEnd) continue;
-          if (meta.date > maxD) {
-            maxD = meta.date;
-            maxId = id;
-            maxOrd = meta.maxOrden ?? -1;
-          } else if (meta.date === maxD && maxD !== -Infinity) {
-            if (id > maxId) {
-              maxId = id;
-              maxOrd = meta.maxOrden ?? -1;
-            }
-          }
-        }
-        if (maxId) globalLatestSnapshot[nhc] = { idToma: maxId, maxOrden: maxOrd };
-      }
-    }
+    const requestedCats = filters?.categories?.map(c => normalizeString(c).replace(/^\d{2}-/, '').trim()) || [];
+    const requestedFields = filters?.fields?.map(f => normalizeString(f).replace(/^ec_/, '').replace(/_/g, ' ').trim()) || [];
 
     for (const nhc of nhcs) {
+      if (signal?.aborted) {
+        throw new DOMException('Search aborted', 'AbortError');
+      }
       const skeleton = this.patientSkeletons[nhc];
+      if (!skeleton) continue;
       let isValidPatient = true;
       let validTomasCount = 0;
       let matchingTomas: string[] = [];
+      let maxD = -Infinity;
+      let latestId = '';
+      let latestOrd = -1;
       
-      if (filterService || filterStart || filterEnd || requestedCats.length > 0) {
+      const hasAnyFilter = filterService || filterStart || filterEnd || requestedCats.length > 0 || requestedFields.length > 0;
+      
+      if (hasAnyFilter || filters?.onlyLatestSnapshot) {
          isValidPatient = false;
          if (skeleton.tomasMeta) {
              for (const tomaId in skeleton.tomasMeta) {
@@ -406,14 +851,38 @@ export class QueryEngine {
                      }
                      if (isValidToma && requestedCats.length > 0) {
                         const tomaCats = meta.categories || [];
-                        const hasCatMatch = requestedCats.some(req => tomaCats.some(tc => tc.toUpperCase().includes(req)));
+                        const hasCatMatch = requestedCats.some(req => tomaCats.some(tc => {
+                           const cleanTC = normalizeString(tc).replace(/^\d{2}-/, '').trim();
+                           return cleanTC.includes(req) || req.includes(cleanTC);
+                        }));
                         if (!hasCatMatch) isValidToma = false;
+                     }
+                     if (isValidToma && requestedFields.length > 0) {
+                        const tomaFields = meta.fields || [];
+                        const hasFieldMatch = requestedFields.some(req => tomaFields.some(tf => {
+                           const cleanTF = normalizeString(tf).replace(/^ec_/, '').replace(/_/g, ' ').trim();
+                           return cleanTF === req || normalizeString(tf) === req;
+                        }));
+                        if (!hasFieldMatch) isValidToma = false;
                      }
                  }
                  if (isValidToma) {
                     isValidPatient = true;
                     validTomasCount++;
                     matchingTomas.push(tomaId);
+                    
+                    if (filters?.onlyLatestSnapshot && meta.date !== undefined) {
+                       if (meta.date > maxD) {
+                         maxD = meta.date;
+                         latestId = tomaId;
+                         latestOrd = meta.maxOrden ?? -1;
+                       } else if (meta.date === maxD && maxD !== -Infinity) {
+                         if (tomaId > latestId) {
+                           latestId = tomaId;
+                           latestOrd = meta.maxOrden ?? -1;
+                         }
+                       }
+                    }
                  }
              }
          }
@@ -423,13 +892,13 @@ export class QueryEngine {
       
       if (!isValidPatient) continue;
 
-      if (filters?.onlyLatestSnapshot && globalLatestSnapshot[nhc]) {
+      if (filters?.onlyLatestSnapshot && latestId) {
         results.push({
           nhc,
           patient: skeleton,
           totalScore: 1,
           matchingTomasCount: 1,
-          bestMatchUrl: { idToma: globalLatestSnapshot[nhc].idToma, ordenToma: globalLatestSnapshot[nhc].maxOrden },
+          bestMatchUrl: { idToma: latestId, ordenToma: latestOrd },
           matchedRegistros: []
         });
       } else {

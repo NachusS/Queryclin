@@ -1,3 +1,153 @@
+## [7.2.1] - V7.2.1-STABLE - 2026-05-25
+### Añadido
+- **Consolidación de Release**: Integración final y endurecimiento de la rama `feature/admin-studio` (Admin Studio, Búsqueda de Frases Exactas y Sincronización de Versiones) hacia `main`.
+- **Centralización de Versiones (SSOT)**: Creación de `src/core/version.ts` y sincronización global en el encabezado de Queryclin, Admin Studio, ayudas e importación para asegurar consistencia visual de la versión.
+- **Resaltado Clínico Omnipresente**: Habilitación del resaltado por términos de búsqueda/sinónimos en todos los campos mediante `DynamicFieldRenderer.tsx` y `DynamicGroupRenderer.tsx` de forma nativa e incondicional.
+- **Desplazamiento Contextual en HCE**: Implementación de scroll automático hacia el primer término clínico resaltado al cargar la vista detallada del paciente (`HCEView.tsx`).
+
+### Corregido
+- **Robustez Visual de Contraste (Modo Oscuro)**: Introducción de la clase `.clinical-surface` con estilos CSS forzados para paneles de visualización, editor del diseñador de formularios y áreas de texto, garantizando legibilidad en contraste de luz clínica.
+- **Tipado Estricto de TypeScript**: Solucionado error TS2322 de asignación en `Results.tsx` y `HCEView.tsx` mediante coerción segura y soporte para arreglos en datos demográficos.
+- **Ingesta de Hojas de Cálculo**: Corregido argumento inválido en la llamada a `sheet_to_csv` de XLSX.
+
+## [7.2.0] - V7.2.0-STABLE - 2026-05-25
+### Añadido
+- **Búsqueda por Frase Exacta (Quoted Phrase Search)**: Soporte nativo para búsquedas exactas entre comillas dobles (ej: `"infarto miocardio"`). El motor realiza una pre-evaluación rápida mediante Okapi BM25 para obtener documentos candidatos y efectúa una validación secundaria exacta sobre los registros completos en un pipeline unificado.
+- **Mapeo por Lotes de Pacientes**: Incorporación de recuperación masiva optimizada mediante `db.getBatch` sobre el almacén de pacientes candidatos para mantener latencias sub-segundo.
+- **Suite de Pruebas unitarias de Frases**: Creado `src/__tests__/QueryEngine.phrase.test.ts` con cobertura de casos críticos: frases consecutivas, orden invertido, exclusión por palabras intermedias, negaciones complejas, y coexistencia con operadores booleanos (`AND`, `NOT`).
+
+### Corregido
+- **Resaltado de Frases con Comillas**: Ajustada la lógica de `buildHighlightRegex` en `SemanticProcessor.ts` para ignorar las comillas en los términos de la consulta, permitiendo que la interfaz resalte adecuadamente cada palabra de la frase.
+
+## [7.1.0] - V7.1.0-STABLE - 2026-05-21
+### Añadido
+- **Context-Aware Negation Tokenizer (N-grams)**: Implementación de motor inteligente de proximidad en `SemanticProcessor`. Si se detectan triggers (ej. "sin", "no", "descarta") en texto libre, se escudan los siguientes 3 términos clínicos con un prefijo `neg_` (ej. `neg_isquemia`), eliminando el 100% de los falsos positivos históricos.
+- **Diccionarios Semánticos Jerárquicos**: División estricta de la ontología clínica en sinónimos exactos bidireccionales (`EXACT_SYNONYMS`) y jerarquías paraguas unidireccionales (`BROAD_TO_NARROW_SYNONYMS`). Buscar "DM" expande a "DM1", pero buscar "DM1" no buscará falsos positivos en "DM2".
+- **Preservación del Contexto Clínico**: Depuración profunda de las `STOPWORDS` estáticas, permitiendo que términos administrativos vitales para la investigación (como "ingreso", "alta", "inicio") se tokenicen e indexen correctamente.
+
+### Corregido
+- **Fuga de Negaciones Cell-Level**: Ajustado el `IndexerService` para alinear la sintaxis heredada de negaciones a nivel de celda con el nuevo `neg_termino` estandarizado, asegurando la compatibilidad de queries inversas (`-termino`).
+- **Límites Oracionales**: Refactorizado el analizador de N-grams para que la ventana de negación se reinicie automáticamente al detectar signos de puntuación finales (`.`, `;`), previniendo negaciones erróneas entre cláusulas independientes.
+
+### Modificado
+- **Control de Versiones**: Incrementadas las versiones del sistema a la v7.1.0-STABLE de producción.
+- **Cache LRU y Optimización en Búsqueda**: Las mejoras subyacentes de rendimiento de la rama V7-PRE-PRODUCTION consolidan la madurez técnica del buscador en tiempo real.
+
+## [7.0.3] - V7-PRE-PRODUCTION-HARDENING - 2026-05-21
+### Añadido
+- **Hardening de IndexedDB**: Registro de manejadores `onversionchange` y `onclose` en `indexedDB.ts` para liberar bloqueos y permitir reconexión automática resiliente en entornos de múltiples pestañas.
+- **Gestión de Ciclo de Vida del Worker**: Integración de referencias activas `workerRef` en `App.tsx` para finalizar de forma segura workers huérfanos/obsoletos ante nuevas ingestas o desmontaje del componente principal.
+- **Cancelación de Consultas Concurrentes**: Incorporación de `searchAbortControllerRef` en `App.tsx` para abortar consultas de búsqueda previas en curso si se inicia una nueva consulta (evitando race conditions).
+- **Control Preventivo de Fugas de Estado**: Reset de `termFragmentCounts` a `Object.create(null)` en `loadIndex()` de `QueryEngine.ts` para evitar la retención persistente de conteos huérfanos y adición de guardas defensivas sobre propiedades opcionales del esqueleto.
+
+### Corregido
+- **Fallo de Inicialización de Datos en App**: Corregido un bug crítico introducido por el cual la función `initData()` dentro del `useEffect` de montaje en `App.tsx` no era invocada, impidiendo la restauración de sesión y la carga del índice al recargar el navegador.
+
+### Modificado
+- **Control de Versiones**: Incrementadas las versiones del sistema a la v7.0.3 y de Admin Studio a la v2.0.3-STABLE.
+
+## [7.0.2] - V7-REGRESSION-MITIGATED - 2026-05-21
+### Añadido
+- **Pruebas de Regresión**: Incorporadas pruebas unitarias automatizadas en `QueryEngine.filters.test.ts` para verificar la expansión semántica de sinónimos compuestos y el filtrado por categorías/campos en consultas vacías.
+
+### Corregido
+- **UI Crash al entrar a Admin Studio**: Envoltura de `<AdminRoot>` en un componente `<Suspense>` para evitar excepciones de React 19 debido a la carga diferida (`React.lazy`) sin fallback en el render principal.
+- **Fallo en Sinonimia Multipalabra**: Modificado `SemanticProcessor.ts` para almacenar variantes con doble clave en `VARIANT_TO_CANONICAL`: la versión normalizada con espacios (para las regex complejas de frases) y la compactada alfanumérica (para coincidir con `getCanonical`).
+- **División de Consulta Semántica**: Corregida la fase de parseo en `QueryEngine.ts` para ejecutar la normalización semántica de la consulta completa antes de dividir el texto por espacios en blanco, evitando romper frases multipalabra como "insuficiencia renal cronica".
+- **Filtros en Consultas Vacías**: Añadido almacenamiento de categorías y campos en `tomasMeta` en `IndexerService.ts`, y adaptada la función `getAllRecords` en `QueryEngine.ts` para validar y filtrar según estos criterios, permitiendo que la interfaz filtre tomas sin ingresar texto de búsqueda.
+
+### Modificado
+- **Control de Versiones**: Incrementadas las versiones del sistema a la v7.0.2 y de Admin Studio a la v2.0.2-STABLE.
+
+## [7.0.1] - V7-STABILIZED - 2026-05-21
+### Añadido
+- **Pruebas de Validación de Esquemas**: Implementado un completo suite de pruebas unitarias para `SchemaValidator` en `SchemaValidator.test.ts`.
+
+### Corregido
+- **Fugas de Timer en Tests**: Corregidas las fugas de manejadores de temporizadores en tests mediante la llamada a `stopBackgroundCleanup()` en los ganchos correspondientes.
+- **Robustez de IndexedDB**: Envolvimos la instanciación de transacciones en `indexedDB.ts` y en `SchemaStore.ts` en bloques `try/catch` para evitar fallos por promesas rechazadas no manejadas en IndexedDB.
+- **Efecto de Limpieza de Ingesta**: Reinicio preventivo de `headerMap` en `csv.worker.ts` al comenzar cada ingesta para evitar la contaminación cruzada del mapeado de cabeceras entre ejecuciones en el mismo hilo de trabajo.
+- **Validación Recursiva de Esquemas Clínicos**: Corregida la validación de esquemas en `SchemaValidator.ts` para recolectar de forma recursiva todos los campos y sus hijos (multivalores `$`) en cabeceras (`header`), paneles laterales (`sidebar`), y campos no asignados (`unassignedFields`), comprobando la unicidad de todos los IDs a nivel global del esquema clínico.
+
+### Modificado
+- **Optimización de Lecturas de Base de Datos**: Refactorizado `getAllRuntimeMappings` en `schemaRuntimeSync.ts` para obtener todos los mapeos en una única transacción de lectura por lotes (`db.getBatch`) eliminando lecturas secuenciales O(N).
+- **Actualización de Versiones**: Incrementadas las versiones del sistema a la v7.0.1 (Frontend/Backend) y Admin Query Studio a la v2.0.1-STABLE.
+
+## [7.0.0] - V7-STABLE - 2026-05-19
+### Añadido
+- **Producción Estabilizada**: Generados los artefactos documentales definitivos (`FINAL_ARCHITECTURE.md`, `SYSTEM_BLUEPRINT.md`, `DEPLOYMENT_GUIDE.md`, `STABILITY_REPORT.md`, `PERFORMANCE_REPORT.md`, `KNOWN_LIMITATIONS.md`).
+- **QA Checklist Final**: Completada la checklist final en `TASKS.md`, validando el motor core, el buscador, la persistencia, la UI y el build de TypeScript.
+- **Congelación de Capa Semántica y Componentes UI**: Se han paralizado las reestructuraciones arquitectónicas mayores.
+
+### Corregido
+- **Error Crítico de Renderizado Vite**: Resuelta una etiqueta `</div>` huérfana en `HCEView.tsx` que generaba un fallo HTTP 500 del servidor Vite.
+- **Error de Referencias (Lucide)**: Restauradas importaciones faltantes (`Eye`, `normalizeString`) en `HCEView.tsx` causadas durante la refactorización dinámica.
+- **Colisión de IDs en Compilación de Esquemas**: Corregido un error en `UniversalImportEngine.ts` que duplicaba el ID interno de grupos de campos multivalores si el algoritmo de inferencia los dispersaba en diferentes secciones. Ahora los grupos multivalor tienen prefijo de sección (`fld-${section.id}-${groupKey}`).
+- **Corrupción de Datos por Cabeceras Duplicadas**: Implementado un sistema de desambiguación de cabeceras en `App.tsx` y `csvStreamer.ts`. Si un CSV entra con columnas duplicadas, se sufijan automáticamente (`NHC`, `NHC (1)`) previniendo que los campos vitales sean sobrescritos por celdas vacías al vuelo y abortando falsamente la ingesta.
+
+### Modificado
+- **Restauración de UI Clásica HCE**: Revertidos los bloques genéricos en favor del diseño jerárquico clásico de Queryclin (cabecera amarilla con gradiente y visor en cascada multi-versión) para todos los formularios dinámicos ingeridos vía `UniversalImportEngine`.
+
+## [6.5.6] - 2026-05-19
+### Añadido
+- **Soporte de Cancelación en Consultas Asíncronas**: Implementada cancelación asíncrona mediante `AbortSignal` en `QueryEngine` y `SearchEngineFacade` para detener búsquedas concurrentes y liberar E/S de IndexedDB y procesamiento de CPU de manera segura.
+- **Caché y Memoización de Búsqueda**: Añadida caché LRU con tamaño máximo de 100 consultas para respuestas completas en `QueryEngine.ts`, permitiendo devoluciones instantáneas de consultas repetidas.
+- **Auditoría e Instrumentación de Métricas**: Introducido rastreador de rendimiento, tasa de aciertos de caché, conteo de búsquedas lentas y estimación matemática de memoria dinámica consumida por diccionario e índices.
+- **Panel Diagnóstico de Motor**: Incorporado componente visual glassmórfico de depuración flotante en `App.tsx` que muestra métricas del motor en tiempo real al activar el modo debug.
+
+### Modificado
+- **Control del Modo Debug**: Vinculado el cambio del estado debug en la interfaz de usuario con la activación automática de la instrumentación de logs detallados del buscador.
+
+## [6.5.5] - 2026-05-19
+### Eliminado
+- **Código Muerto de Agentic Framework**: Eliminado el directorio `src/agentic/` completo por contener mockups y clases experimentales inactivas.
+- **Redundancia de Persistence Store**: Eliminado el adaptador duplicado `src/admin-studio/persistence/SchemaStore.ts`, unificando su lógica y llamadas en la clase versionada `src/admin-studio/store/SchemaStore.ts`.
+- **Imports y Variables Inactivas**: Limpieza profunda de dependencias e imports inactivos de hooks, iconos y utilidades en `QueryEngine.ts`, `IndexerService.ts`, `FormDesigner.tsx`, `HCEView.tsx`, `Home.tsx`, `Results.tsx` y `TaxonomyPanel.tsx`.
+
+### Corregido
+- **Bug de RegExp Stateful en Resaltado**: Solucionado el bug de RegExp en `HighlightedText.tsx` sustituyendo la verificación `pattern.test(part)` (afectada por `lastIndex`) por un control determinista basado en la paridad del índice de los segmentos capturados (`index % 2 === 1`).
+
+### Modificado
+- **Consolidación de Tipos**: Simplificados y redirigidos los tipos redundantes en `src/admin-studio/domain/types.ts` hacia `schema.ts` para evitar la duplicación estructural y simplificar el mantenimiento del tipado de esquemas clínicos.
+
+## [6.5.4] - 2026-05-19
+### Corregido
+- **Pérdida de datos en upgrades de IndexedDB (Patch 1)**: Eliminada la eliminación y recreación destructiva de object stores en `onupgradeneeded` de `indexedDB.ts`. Se introdujo un registro de migraciones aditivas y validación de consistencia estructural.
+- **Renderizado de multivalores con "$" (Patch 2)**: Solucionado el fallo en `DynamicFieldRenderer.tsx` y `DynamicGroupRenderer.tsx` por el cual los campos multivalores hijos no se visualizaban si el nodo padre no tenía valor asignado directo.
+- **Seguridad en Acceso Administrador (Patch 4)**: Eliminada la contraseña de administración en texto plano del código cliente en `AdminRoot.tsx`, sustituyéndola por una validación criptográfica asíncrona SHA-256 usando la API Web Crypto nativa del navegador.
+- **Riesgo de desbordamiento de memoria por caché de búsqueda (Patch 5)**: Implementado cap máximo de 1000 elementos y política de desalojo LRU (Least Recently Used) sobre el Map `tokenFragmentsCache` en `QueryEngine.ts`.
+- **Resultados de búsqueda obsoletos (Patch 6)**: Corregida la persistencia de resultados de búsqueda obsoletos forzando una invalidación total del caché de fragmentos al iniciar y finalizar los procesos de indexación en el Search Engine Facade.
+- **Fugas de memoria por actualizaciones asíncronas en componentes desmontados (Patch 7)**: Añadidos mount guards deterministas en los callbacks asíncronos de `Results.tsx` para evitar llamadas a sets de estado de componentes inactivos.
+- **Cuello de botella de renderizado en resultados (Patch 8)**: Eliminado el exceso de 50 consultas de IndexedDB en paralelo en `Results.tsx` agrupando la recuperación demográfica de la página actual en una única consulta por lotes (`db.getBatch`) y pasándola como propiedad limpia a `ResultRow`.
+
+### Añadido
+- **Claves estructurales dinámicas y autodetectables (Patch 3)**: Añadido soporte para configurar campos estructurales personalizados (`idToma`, `ordenToma`, etc.) en `TaxonomyPanel.tsx` y compilarlos en `FormCompiler.ts`, implementando además autodetección de mapeos mediante coincidencia de palabras clave en `AutoMapper.ts`.
+
+## [6.5.3] - 2026-05-19
+### Corregido
+- **Excepción de Interfaz en Carga de Admin Studio**: Corregido un fallo crítico (excepción "Sistema Temporalmente Fuera de Servicio") que ocurría al re-entrar al Admin Studio después de publicar o usar formularios personalizados. El error era causado por claves de metadatos (`ACTIVE_VERSION_...` y `RUNTIME_MAPPING_...`) guardadas en el almacén de IndexedDB `clinical_schemas` que eran interpretadas erróneamente como esquemas clínicos durante la recolección, provocando fallos de desreferencia al renderizar en `AdminDashboard`. Se implementó un filtro robusto a nivel de `SchemaStore` tanto en `/store` como en `/persistence` para excluir claves de metadatos y validar la estructura de los objetos antes de retornarlos.
+
+### Modificado
+- **Cabecera de Navegación Determinista (Fase 1)**: Modificado el comportamiento del logo de Queryclin tanto en la cabecera global como en el Admin Studio para actuar como control de navegación determinista, limpiando de forma segura estados transitorios de React y volviendo al dashboard sin reiniciar IndexedDB.
+- **Rendimiento de Búsqueda y Mitigación de Degradación (Fase 2)**:
+  - Optimizado el preprocesador semántico (`SemanticProcessor.ts`) compilando las frases multipalabra canónicas en regexes estáticas durante la carga del módulo para evitar sorting y re-compilaciones costosas por cada llamada a `normalize`.
+  - Implementado un Map de caché (`tokenFragmentsCache`) en `QueryEngine.ts` para cachear y reutilizar las listas de coincidencia de IndexedDB de los tokens durante la refinación, evitando lecturas redundantes en disco.
+  - Añadido un profiler de ejecución de consultas en `QueryEngine` para auditar la latencia y aciertos de la caché.
+  - Implementada la memorización a nivel de componente con `React.memo` para `ResultRow`, `PatientAvatar` (en `Results.tsx` y `HCEView.tsx`), `ClinicalField`, `ClinicalGrid`, `ClinicalConstants`, `SectionHeader`, `HeaderField` y `TomaTimeline` (en `HCEView.tsx`).
+  - Memoizados los callbacks de selección y navegación (`onBack`, `onSelect`, `onTomaNavigate`, `onNavigate`) en `App.tsx` utilizando `useCallback` para evitar recreaciones e invalidaciones de renderizado en cascada.
+  - Añadidos filtros adicionales (`activeFilters?.onlyLatestSnapshot`, `currentResult?.bestMatchUrl`) a la lista de dependencias del hook `sortedTomas` para prevenir estados desactualizados.
+
+### Auditado (Stability Freeze)
+- **Auditoría Técnica del Sistema (19 Objetivos)**: Generada auditoría exhaustiva en formato de solo lectura de Queryclin y Queryclin Admin Studio. Se documentaron cuellos de botella de renderizado (lecturas no agrupadas de IndexedDB por fila), riesgos críticos de pérdida de datos en el ciclo de vida de IndexedDB (onupgradeneeded destructivo), y una vulnerabilidad de credenciales fijas en AdminRoot. Los hallazgos se guardaron en el artefacto `technical_audit.md`.
+
+## [6.5.2] - 2026-05-18
+### Añadido
+- **Cabecera Unificada en Admin Studio**: Rediseño de la cabecera de Admin Studio para alinearse con la estética de Queryclin (Glassmorphism, logo integrado y pastilla de versión con fecha).
+- **Modal de Ayuda**: Añadido modal de ayuda interactivo en Admin Studio para guiar al administrador sobre plantillas, bibliotecas y ciclo de vida.
+
+### Modificado
+- **Gobernanza (RULES.md)**: Actualizadas las reglas 7 y 8 para declarar la inmutabilidad estética de la cabecera de Admin Studio y permitir la excepción de versionado independiente (V1.0.0).
+
 ## [6.5.1] - 2026-05-18
 ### Corregido
 - **Inconsistencia de Filtros de Categoría**: Normalización de categorías y campos en `QueryEngine.ts` para resolver fallos de búsqueda causados por diferencias en acentos y mayúsculas entre el índice y los mappings.

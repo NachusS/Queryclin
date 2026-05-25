@@ -3,7 +3,7 @@
  * Define la estructura de los formularios clínicos de forma declarativa.
  */
 
-export type ClinicalFieldType = 
+export type FieldType = 
   | "text"
   | "textarea"
   | "number"
@@ -12,56 +12,58 @@ export type ClinicalFieldType =
   | "multivalue"
   | "table";
 
-export interface ClinicalField {
+export interface Field {
   id: string;
   sourceField: string;
   label: string;
-  type: ClinicalFieldType;
+  type: FieldType;
   searchable: boolean;
   highlightable: boolean;
   visible: boolean;
   multiline?: boolean;
   multivalue?: boolean;
-  children?: ClinicalField[]; // Para soporte anidado (ej. multivalores $)
+  children?: Field[]; // Para soporte anidado (ej. multivalores $)
 }
 
-export interface ClinicalGroup {
+export interface Group {
   id: string;
   title: string;
   layout: "stack" | "table" | "grid" | "columns";
   columns?: number;
-  fields: ClinicalField[];
+  fields: Field[];
 }
 
-export interface ClinicalSection {
+export interface Section {
   id: string;
   title: string;
   order: number;
   collapsible: boolean;
-  groups: ClinicalGroup[];
+  groups: Group[];
 }
 
 export interface HeaderGroup {
   id: string;
   layout: "row" | "grid";
-  fields: ClinicalField[];
+  fields: Field[];
 }
 
 export interface SidebarGroup {
   id: string;
   title: string;
-  fields: ClinicalField[];
+  fields: Field[];
 }
 
-export interface ClinicalFormSchema {
-  id: string;
+export interface FormSchema {
+  id: string; // ID base del formulario (ej. "hce_obs")
   name: string;
-  version: string;
+  version: string; // Versión incremental (ej. "1", "2")
   status: "draft" | "published" | "archived";
   header: HeaderGroup[];
   sidebar: SidebarGroup[];
-  sections: ClinicalSection[];
-  unassignedFields?: ClinicalField[];
+  sections: Section[];
+  unassignedFields?: Field[];
+  headerAliases?: Record<string, string[]>; // Aliases para cabeceras
+  demographics?: Record<string, string>; // Mapeo de datos demográficos
   createdAt: number;
   updatedAt: number;
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Code, Lightbulb, Database, Activity, FileCheck, Zap, Shield, Microscope } from 'lucide-react';
+import { SYSTEM_VERSION } from '../core/version';
 
 interface EvolutionProps {
   onBack: () => void;
@@ -190,7 +191,7 @@ export default function Evolution({ onBack }: EvolutionProps) {
       </div>
 
         <div className="text-center mt-12 text-[var(--text-secondary)] text-[10px] font-medium tracking-widest uppercase opacity-50">
-          Hoja de Ruta 2026 - Queryclin V6.2.2
+          Hoja de Ruta 2026 - Queryclin {SYSTEM_VERSION}
         </div>
     </div>
   );

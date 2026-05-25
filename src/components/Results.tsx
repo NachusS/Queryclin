@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { SearchResult } from '../engine';
 import { ArrowLeft, FileText, Activity, User, ChevronRight, FileSpreadsheet, X, Info } from 'lucide-react';
 import { db } from '../storage/indexedDB';
 import { Patient, getGender } from '../core/types';
 import * as XLSX from 'xlsx';
 import { transformPatientsForExport, ExportMode } from '../utils/exportUtils';
+import HighlightedText from './HighlightedText';
 
 interface ResultsProps {
   results: SearchResult[];
@@ -14,7 +15,7 @@ interface ResultsProps {
 }
 
 // ─── Avatar Compacto ──────────────────────────────────────────────────────────
-function PatientAvatar({ gender, size = 16 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
+const PatientAvatar = memo(function PatientAvatar({ gender, size = 16 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
   const config = {
     male:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-500',    border: 'border-cyan-500/20' },
     female:  { bg: 'bg-purple-400/10',  text: 'text-purple-400',  border: 'border-purple-400/20' },
@@ -26,26 +27,10 @@ function PatientAvatar({ gender, size = 16 }: { gender: 'male' | 'female' | 'neu
       <User size={size} />
     </div>
   );
-}
+});
 
-// ─── Fila de Resultado (Compacta) ──────────────────────────────────────────────
-function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: (r: SearchResult) => void }) {
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    const fetchDemographics = async () => {
-      const p = await db.getFromStore(db.stores.patients, res.nhc);
-      if (active && p) {
-        setPatient(p);
-        setLoading(false);
-      }
-    };
-    fetchDemographics();
-    return () => { active = false; };
-  }, [res.nhc]);
-
+const ResultRow = memo(function ResultRow({ res, patient, query, onSelect }: { res: SearchResult, patient: Patient | null, query: string, onSelect: (r: SearchResult) => void }) {
+  const loading = !patient;
   const demographics = patient?.demographics || {};
   
   // Búsqueda del valor a mostrar: Prioridad PROCESO (mapeado a EC_Proceso2 en worker) -> Nombre
@@ -63,6 +48,10 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
     displayValue = nameKey ? demographics[nameKey] : `Paciente ${res.nhc}`;
   }
 
+  const displayString = Array.isArray(displayValue)
+    ? displayValue.join(', ')
+    : (displayValue || '');
+
   return (
     <div 
       onClick={() => onSelect(res)}
@@ -74,7 +63,9 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
       <div className="flex-1 flex items-center gap-4 min-w-0">
         <div className="flex flex-col min-w-[100px]">
           <span className="text-[10px] font-black text-[var(--accent-clinical)] uppercase tracking-tighter leading-none mb-1">NHC</span>
-          <span className="text-[14px] font-bold text-[var(--text-primary)] font-mono leading-none">{res.nhc}</span>
+          <span className="text-[14px] font-bold text-[var(--text-primary)] font-mono leading-none">
+            <HighlightedText text={res.nhc} query={query} />
+          </span>
         </div>
         
         <div className="flex flex-col flex-1 min-w-0">
@@ -82,7 +73,9 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
           {loading ? (
             <div className="h-4 w-32 bg-[var(--border-clinical)] animate-pulse rounded"></div>
           ) : (
-            <span className="text-[14px] font-bold text-[var(--text-primary)] truncate uppercase tracking-tight">{displayValue}</span>
+            <span className="text-[14px] font-bold text-[var(--text-primary)] truncate uppercase tracking-tight">
+              <HighlightedText text={displayString} query={query} />
+            </span>
           )}
         </div>
       </div>
@@ -118,7 +111,7 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
       </div>
     </div>
   );
-}
+});
 
 // ─── Modal de Exportación ─────────────────────────────────────────────────────
 function ExportModal({ onConfirm, onClose, count }: { onConfirm: (mode: ExportMode) => void; onClose: () => void; count: number; }) {
@@ -203,6 +196,7 @@ function ExportModal({ onConfirm, onClose, count }: { onConfirm: (mode: ExportMo
 export default function Results({ results, query, onSelect, onBack }: ResultsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [patientsMap, setPatientsMap] = useState<Record<string, Patient>>({});
   const itemsPerPage = 50;
   
   const totalPages = Math.ceil(results.length / itemsPerPage);
@@ -213,14 +207,34 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
     setCurrentPage(1);
   }, [results]);
 
+  useEffect(() => {
+    let active = true;
+    const preloadDemographics = async () => {
+      const nhcs = Array.from(new Set(visibleResults.map(r => r.nhc)));
+      if (nhcs.length === 0) return;
+      try {
+        const batch = await db.getBatch(db.stores.patients, nhcs);
+        if (active) {
+          setPatientsMap(prev => ({ ...prev, ...batch }));
+        }
+      } catch (err) {
+        console.error("[Results] Error preloading demographics:", err);
+      }
+    };
+    preloadDemographics();
+    return () => { active = false; };
+  }, [currentPage, results]);
+
   const handleExportExcel = async (mode: ExportMode) => {
     setShowExportModal(false);
     if (results.length === 0) return;
     
     // Tarea E2: Generador de Informes / Exportación XLSX Profesional
+    const nhcs = results.map(res => res.nhc);
+    const batch = await db.getBatch(db.stores.patients, nhcs);
     const fullPatients: Patient[] = [];
     for (const res of results) {
-       const p = await db.getFromStore(db.stores.patients, res.nhc);
+       const p = batch[res.nhc];
        if (p) fullPatients.push(p);
     }
     
@@ -284,8 +298,8 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
 
       {/* Lista de Resultados (Layout de Fila Unica) */}
       <div className="flex flex-col gap-2">
-        {visibleResults.map((res, idx) => (
-          <ResultRow key={`res_${res.nhc}_${idx}`} res={res} onSelect={onSelect} />
+        {visibleResults.map((res) => (
+          <ResultRow key={res.nhc} res={res} patient={patientsMap[res.nhc] || null} query={query} onSelect={onSelect} />
         ))}
 
         {results.length === 0 && (

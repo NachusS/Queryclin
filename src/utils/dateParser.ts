@@ -110,8 +110,9 @@ export const parseClinicalDate = (dateStrRaw: any): number | null => {
   return null;
 };
 
-export function extractFecha(data: Record<string, string>): string {
-  const raw = data['EC_Fecha_Toma'] || data['FECHA_TOMA'] || data['FECHA'] || '';
+export function extractFecha(data: Record<string, string | string[]>): string {
+  const rawValue = data['EC_Fecha_Toma'] || data['FECHA_TOMA'] || data['FECHA'] || '';
+  const raw = String(rawValue);
   if (!raw) return '--';
   const ts = parseClinicalDate(raw);
   if (!ts) return raw.includes(' ') ? raw.split(' ')[0] : raw;
@@ -123,12 +124,14 @@ export function extractFecha(data: Record<string, string>): string {
   return `${day}/${month}/${year}`;
 }
 
-export function extractHora(data: Record<string, string>): string {
-  const raw = data['EC_Fecha_Toma'] || data['FECHA_TOMA'] || data['FECHA'] || '';
-  const hStr = data['HORA_TOMA'] || data['EC_Hora_Toma'] || data['HORA'] || '';
+export function extractHora(data: Record<string, string | string[]>): string {
+  const rawValue = data['EC_Fecha_Toma'] || data['FECHA_TOMA'] || data['FECHA'] || '';
+  const raw = String(rawValue);
+  const hStrValue = data['HORA_TOMA'] || data['EC_Hora_Toma'] || data['HORA'] || '';
+  const hStr = String(hStrValue);
   
   if (hStr && hStr.includes(':')) return hStr.slice(0, 5);
-  if (String(raw).includes(' ')) return String(raw).split(' ')[1]?.slice(0, 5) || '--:--';
+  if (raw.includes(' ')) return raw.split(' ')[1]?.slice(0, 5) || '--:--';
   return '--:--';
 }
 

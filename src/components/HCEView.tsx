@@ -1,18 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { SearchResult } from '../engine';
 import { 
   ArrowLeft, ChevronLeft, ChevronRight, User, AlertTriangle, 
-  Calendar, Clock, Hash, ChevronDown, Bug, Eye, EyeOff 
+  Calendar, Clock, Hash, Eye
 } from 'lucide-react';
 
 import HighlightedText from './HighlightedText';
 import { db } from '../storage/indexedDB';
+import { normalizeString } from '../utils/stringNormalizer';
 import { Patient, Toma, getGender } from '../core/types';
 import { FORMS } from '../core/mappings';
 import { parseClinicalDate, extractFecha, extractHora } from '../utils/dateParser';
-import { DynamicSectionRenderer } from '../admin/renderer/DynamicSectionRenderer';
-import { ClinicalFormSchema } from '../admin/domain/types';
-import { normalizeString } from '../utils/stringNormalizer';
+import { DynamicSectionRenderer } from '../admin-studio/renderer/DynamicSectionRenderer';
+import { schemaRuntimeSync } from '../admin-studio/store/schemaRuntimeSync';
+import { ClinicalFormSchema } from '../admin-studio/domain/types';
 
 interface HCEViewProps {
   results: SearchResult[];
@@ -21,7 +22,7 @@ interface HCEViewProps {
   onBack: () => void;
   onNavigate: (index: number) => void;
   formId: string;
-  activeFilters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[] };
+  activeFilters?: { dateRange?: [string, string], service?: string, categories?: string[], fields?: string[], onlyLatestSnapshot?: boolean };
   activeTomaIndex: number;
   activeVersionIndex: number;
   onTomaNavigate: (tIdx: number, vIdx: number) => void;
@@ -31,7 +32,7 @@ interface HCEViewProps {
 
 
 // ─── Avatar de Paciente ───────────────────────────────────────────────────────
-function PatientAvatar({ gender, size = 28 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
+const PatientAvatar = memo(function PatientAvatar({ gender, size = 28 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
   const cfg = {
     male:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-500',    border: 'border-cyan-500/20' },
     female:  { bg: 'bg-purple-400/10',  text: 'text-purple-400',  border: 'border-purple-400/20' },
@@ -42,17 +43,17 @@ function PatientAvatar({ gender, size = 28 }: { gender: 'male' | 'female' | 'neu
       <User size={size} />
     </div>
   );
-}
+});
 
 // ─── Chip de Dato Demográfico ──────────────────────────────────────────────────
-function DemoChip({ label, value }: { key?: any; label: string; value: string }) {
+const DemoChip = memo(function DemoChip({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex items-center gap-2 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] px-3 py-1.5 rounded-lg text-[12px]">
       <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-70">{label}</span>
       <span className="font-bold text-[var(--text-primary)]">{value}</span>
     </span>
   );
-}
+});
 
 // ─── Campo Clínico Individual ──────────────────────────────────────────────────
 // ─── Lista Global de Campos de Constantes (para exclusión) ───────────────────
@@ -120,7 +121,7 @@ const cleanKeyStr = (s: string) => String(s)
 
 
 // ─── Campo Clínico Individual ──────────────────────────────────────────────────
-function ClinicalField({ label, value, query, highlight, shouldHighlight = true }: { key?: any; label: string; value: string | string[]; query: string; highlight?: boolean; shouldHighlight?: boolean }) {
+const ClinicalField = memo(function ClinicalField({ label, value, query, highlight, shouldHighlight = true }: { label: string; value: string | string[]; query: string; highlight?: boolean; shouldHighlight?: boolean }) {
   const isMultivalue = Array.isArray(value);
   const displayValue = isMultivalue ? '' : String(value);
   const isLong = !isMultivalue && displayValue.length > 80;
@@ -145,12 +146,12 @@ function ClinicalField({ label, value, query, highlight, shouldHighlight = true 
       {isMultivalue ? (
         <div className="mt-1 space-y-1.5">
           {/* Lista de hallazgos abierta por defecto sin contador */}
-          <div className="bg-slate-50/50 dark:bg-slate-800/30 border-2 border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden">
-            <ul className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="bg-slate-50/50 border-2 border-slate-100 rounded-2xl overflow-hidden">
+            <ul className="flex flex-col divide-y divide-slate-100">
               {value.map((item, idx) => (
-                <li key={idx} className="px-5 py-2.5 flex items-start gap-3 hover:bg-white dark:hover:bg-slate-800 transition-colors">
+                <li key={idx} className="px-5 py-2.5 flex items-start gap-3 hover:bg-white transition-colors">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-clinical)] mt-2 shrink-0" />
-                  <span className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  <span className="text-[15px] font-bold text-slate-800 leading-tight">
                     {shouldHighlight ? <HighlightedText text={item} query={query} /> : item}
                   </span>
                 </li>
@@ -167,21 +168,21 @@ function ClinicalField({ label, value, query, highlight, shouldHighlight = true 
           {displayValue}
         </span>
       ) : isLong ? (
-        <p className="text-[15px] text-slate-900 dark:text-slate-100 leading-[1.75] whitespace-pre-wrap font-bold">
+        <p className="text-[15px] text-slate-900 leading-[1.75] whitespace-pre-wrap font-bold">
           {shouldHighlight ? <HighlightedText text={formattedValue} query={query} /> : formattedValue}
         </p>
       ) : (
-        <span className="text-[16px] text-slate-900 dark:text-slate-100 font-black leading-snug whitespace-pre-wrap">
+        <span className="text-[16px] text-slate-900 font-black leading-snug whitespace-pre-wrap">
           {shouldHighlight ? <HighlightedText text={formattedValue} query={query} /> : formattedValue}
         </span>
       )}
     </div>
   );
-}
+});
 
 // ─── Grid de Datos Clínicos (Estilo Tabla Constantes) ───────────────────────
 // ─── Grid de Datos Clínicos (Estetica Identica a Constantes) ───────────────
-function ClinicalGrid({ title, fields, query, shouldHighlight = true, showEmpty = false }: { title?: string, fields: { key: string, value: string | string[] }[], query: string, shouldHighlight?: boolean, showEmpty?: boolean }) {
+const ClinicalGrid = memo(function ClinicalGrid({ title, fields, query, shouldHighlight = true, showEmpty = false }: { title?: string, fields: { key: string, value: string | string[] }[], query: string, shouldHighlight?: boolean, showEmpty?: boolean }) {
   if (fields.length === 0) return null;
 
   // Repartir campos en 4 bloques verticales para mantener la estética de cajas separadas
@@ -220,7 +221,7 @@ function ClinicalGrid({ title, fields, query, shouldHighlight = true, showEmpty 
       </div>
     </div>
   );
-}
+});
 
 
 
@@ -230,7 +231,7 @@ function ClinicalGrid({ title, fields, query, shouldHighlight = true, showEmpty 
 
 // ─── Bloque de Constantes Clínicas (Inmutable) ────────────────────────────────
 // ─── Bloque de Constantes Clínicas (Inmutable) ────────────────────────────────
-function ClinicalConstants({ data, query, formId, shouldHighlight = true }: { data: Record<string, string>, query: string, formId?: string, shouldHighlight?: boolean }) {
+const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId, shouldHighlight = true }: { data: Record<string, string>, query: string, formId?: string, shouldHighlight?: boolean }) {
   const getV = (keys: string[]) => {
     for (const k of keys) {
       const val = data[k];
@@ -308,10 +309,10 @@ function ClinicalConstants({ data, query, formId, shouldHighlight = true }: { da
 
     </div>
   );
-}
+});
 
 // ─── Cabecera de Sección Clínica ───────────────────────────────────────────────
-function SectionHeader({ label }: { label: string }) {
+const SectionHeader = memo(function SectionHeader({ label }: { label: string }) {
   return (
     <div className="w-full mb-6">
       <div className="bg-[#1e293b] text-white px-5 py-2 text-[13px] font-black uppercase tracking-[0.15em] border-l-4 border-emerald-500 shadow-md flex items-center justify-between">
@@ -320,27 +321,28 @@ function SectionHeader({ label }: { label: string }) {
       </div>
     </div>
   );
-}
+});
 
 // ─── Campo de Cabecera Compacta (HCE-ALG) ───────────────────────────────────
-function HeaderField({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+const HeaderField = memo(function HeaderField({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className={`flex items-center gap-2 px-3 py-1 rounded-md border ${highlight ? 'bg-red-500/10 border-red-500/20 text-red-600' : 'bg-white border-slate-200'}`}>
       <span className="text-[10px] font-black uppercase text-slate-400">{label}:</span>
       <span className={`text-[12px] font-bold ${highlight ? 'text-red-700' : 'text-slate-700'}`}>{value || '--'}</span>
     </div>
   );
-}
+});
 
 
 // ─── Timeline Lateral de Tomas ─────────────────────────────────────────────────
-function TomaTimeline({
+const TomaTimeline = memo(function TomaTimeline({
   sortedTomas,
   activeIndex,
   activeVersionIndex,
   onSelect,
   isHCEALG = false,
   query = '',
+  matchedRegistros = [],
 }: {
   sortedTomas: Toma[];
   activeIndex: number;
@@ -348,18 +350,14 @@ function TomaTimeline({
   onSelect: (tomaIdx: number, versionIdx: number) => void;
   isHCEALG?: boolean;
   query?: string;
+  matchedRegistros?: any[];
 }) {
-  const queryTokens = useMemo(() => 
-    query.toLowerCase().split(/\s+/).filter(t => t.length >= 3),
-    [query]
-  );
-
-  const hasMatch = (data: Record<string, string>) => {
-    if (queryTokens.length === 0) return false;
-    return Object.values(data).some(val => {
-      const s = String(val).toLowerCase();
-      return queryTokens.some(t => s.includes(t));
-    });
+  const hasMatch = (idToma: string, ordenToma?: number) => {
+    if (!query || query.trim() === '') return false;
+    if (ordenToma !== undefined) {
+      return matchedRegistros?.some(m => String(m.idToma) === String(idToma) && Number(m.ordenToma) === Number(ordenToma)) || false;
+    }
+    return matchedRegistros?.some(m => String(m.idToma) === String(idToma)) || false;
   };
   return (
     <div className="flex flex-col gap-0 sticky top-[180px] max-h-[75vh] overflow-y-auto hide-scrollbar rounded-xl border border-slate-200 shadow-sm bg-white">
@@ -382,8 +380,8 @@ function TomaTimeline({
                 <div className="bg-[#FFF9E5] px-3 py-1.5 text-[13px] font-black text-slate-800 border-b border-slate-200 flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1">
                     <Hash size={11} className="text-slate-500" />
-                    {t.idToma}
-                    {t.registros.some(r => hasMatch(r.data)) && (
+                    <HighlightedText text={t.idToma} query={query} />
+                    {hasMatch(t.idToma) && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-1" title="Contiene coincidencias" />
                     )}
                   </div>
@@ -395,14 +393,14 @@ function TomaTimeline({
                 </div>
                 {sortedRegs.map((r, rIdx) => {
                   const isActive = tIdx === activeIndex && rIdx === activeVersionIndex;
-                  const isMatch = hasMatch(r.data);
+                  const isMatch = hasMatch(t.idToma, r.ordenToma);
                   const fecha = extractFecha(r.data);
                   const hora = extractHora(r.data);
                   const orden = r.ordenToma;
 
                   return (
                     <button
-                      key={`${t.idToma}-${orden}`}
+                       key={`${t.idToma}-${orden}`}
                       onClick={() => onSelect(tIdx, rIdx)}
                       className={`flex items-center text-[11px] transition-all border-b border-slate-50 last:border-0 ${
                         isActive 
@@ -422,7 +420,9 @@ function TomaTimeline({
                         {orden}
                       </span>
                       <div className="px-3 py-2 flex-1 flex items-center justify-end gap-1.5 tabular-nums overflow-hidden">
-                        <span className={`font-bold truncate ${!isActive && isMatch ? 'text-amber-700' : ''}`}>{fecha}</span>
+                        <span className={`font-bold truncate ${!isActive && isMatch ? 'text-amber-700' : ''}`}>
+                          <HighlightedText text={fecha} query={query} />
+                        </span>
                         <span className={`text-[9px] font-medium ${isActive ? 'text-blue-100' : isMatch ? 'text-amber-500' : 'text-slate-400'}`}>{hora}</span>
                       </div>
                     </button>
@@ -433,11 +433,11 @@ function TomaTimeline({
           }
 
           const isActive = tIdx === activeIndex;
-          const isMatch = hasMatch(t.latest?.data || {});
+          const isMatch = hasMatch(t.idToma, t.latest?.ordenToma);
           const isLatest = tIdx === 0;
           const fecha = extractFecha(t.latest?.data || {});
           const hora = extractHora(t.latest?.data || {});
-          const usuario = t.latest?.data['Usuario'] || t.latest?.data['USUARIO_TOMA'] || '';
+          const usuario = String(t.latest?.data['Usuario'] || t.latest?.data['USUARIO_TOMA'] || '');
 
           return (
             <button
@@ -445,7 +445,7 @@ function TomaTimeline({
               onClick={() => onSelect(tIdx, 0)}
               className={`group flex flex-col items-start gap-1.5 py-4 px-4 -ml-[2px] border-l-2 transition-all text-left rounded-r-xl ${
                 isActive 
-                  ? 'border-[var(--accent-clinical)] bg-[var(--accent-clinical)]/8' 
+                  ? 'border-l-2 border-[var(--accent-clinical)] bg-[var(--accent-clinical)]/8' 
                   : isMatch
                     ? 'border-amber-400 bg-amber-500/5 hover:bg-amber-500/10'
                     : 'border-transparent hover:border-[var(--accent-clinical)]/50 hover:bg-[var(--accent-clinical)]/4'
@@ -460,7 +460,7 @@ function TomaTimeline({
                       : 'text-[var(--text-secondary)]'
                 }`}>
                   <Hash size={9} />
-                  {t.idToma}
+                  <HighlightedText text={t.idToma} query={query} />
                   {!isActive && isMatch && (
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-0.5" />
                   )}
@@ -473,14 +473,16 @@ function TomaTimeline({
               </div>
               <div className={`flex items-center gap-1.5 text-[11px] font-bold ${isActive ? 'text-[var(--accent-clinical)]' : isMatch ? 'text-amber-700' : 'text-[var(--text-primary)]'}`}>
                 <Calendar size={10} className={isActive ? 'text-[var(--accent-clinical)]' : isMatch ? 'text-amber-500' : 'text-[var(--text-secondary)] opacity-60'} />
-                <span>{fecha}</span>
+                <span><HighlightedText text={fecha} query={query} /></span>
               </div>
               <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isActive ? 'text-[var(--accent-clinical)]/70' : isMatch ? 'text-amber-600/70' : 'text-[var(--text-secondary)] opacity-70'}`}>
                 <Clock size={9} />
                 <span>{hora}</span>
               </div>
               {usuario && (
-                <span className="text-[9px] text-[var(--text-secondary)] opacity-50 truncate max-w-[140px]">{usuario}</span>
+                <span className="text-[9px] text-[var(--text-secondary)] opacity-50 truncate max-w-[140px]">
+                  <HighlightedText text={usuario} query={query} />
+                </span>
               )}
             </button>
           );
@@ -488,7 +490,7 @@ function TomaTimeline({
       </div>
     </div>
   );
-}
+});
 
 // ─── Componente Principal HCEView ──────────────────────────────────────────────
 export default function HCEView({ 
@@ -501,7 +503,7 @@ export default function HCEView({
 
 
   
-  const formMapping = useMemo(() => FORMS.find(f => f.id === formId) || FORMS[0], [formId]);
+  const [formMapping, setFormMapping] = useState<any>(FORMS[0]);
 
   useEffect(() => {
     if (!currentResult) return;
@@ -511,6 +513,16 @@ export default function HCEView({
       setLoading(true);
       try {
         const p = await db.getFromStore(db.stores.patients, currentResult.nhc);
+        
+        // SSOT: Cargar mapping compilado en runtime desde IndexedDB
+        let mapping = FORMS.find(f => f.id === formId);
+        const runtimeMapping = await schemaRuntimeSync.getRuntimeMapping(formId);
+        if (runtimeMapping) {
+          mapping = runtimeMapping;
+          console.log(`[HCEView] Usando mapping runtime para ${formId}`);
+        }
+        setFormMapping(mapping || FORMS[0]);
+
         if (active && p) {
           setPatient(p);
           setLoading(false);
@@ -543,10 +555,23 @@ export default function HCEView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, results.length, onNavigate]);
 
+  // Scroll contextual: localiza y destaca el primer match en el visor HCE
+  useEffect(() => {
+    if (query && query.trim() !== '' && !loading && patient) {
+      const timer = setTimeout(() => {
+        const firstHighlight = document.querySelector('.highlight-match');
+        if (firstHighlight) {
+          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [query, activeTomaIndex, activeVersionIndex, currentIndex, loading, patient]);
+
   const sortedTomas = useMemo(() => {
     if (!patient || !patient.tomas) return [];
     
-    let tomasArray = Object.values(patient.tomas);
+    let tomasArray = Object.values(patient.tomas) as Toma[];
     if (activeFilters?.onlyLatestSnapshot && currentResult?.bestMatchUrl?.idToma) {
       tomasArray = tomasArray.filter(t => t.idToma === currentResult.bestMatchUrl.idToma);
       if (currentResult.bestMatchUrl.ordenToma && currentResult.bestMatchUrl.ordenToma > 0) {
@@ -560,8 +585,8 @@ export default function HCEView({
     return tomasArray.sort((a, b) => {
       const getTime = (t: Toma) => {
         if (!t || !t.latest || !t.latest.data) return 0;
-        const dStr = t.latest.data['EC_Fecha_Toma'] || t.latest.data['FECHA_TOMA'] || '';
-        const hStr = t.latest.data['HORA_TOMA'] || t.latest.data['EC_Hora_Toma'] || '';
+        const dStr = String(t.latest.data['EC_Fecha_Toma'] || t.latest.data['FECHA_TOMA'] || '');
+        const hStr = String(t.latest.data['HORA_TOMA'] || t.latest.data['EC_Hora_Toma'] || '');
         const ts = parseClinicalDate(dStr);
         if (!ts) return 0;
         
@@ -569,16 +594,16 @@ export default function HCEView({
         if (hStr && hStr.includes(':')) {
            const [h, m] = hStr.split(':').map(Number);
            if (!isNaN(h) && !isNaN(m)) {
-              const d = new Date(ts);
-              d.setHours(h, m, 0, 0);
-              return d.getTime();
+               const d = new Date(ts);
+               d.setHours(h, m, 0, 0);
+               return d.getTime();
            }
         }
         return ts;
       };
       return getTime(b as unknown as Toma) - getTime(a as unknown as Toma);
     });
-  }, [patient]);
+  }, [patient, activeFilters?.onlyLatestSnapshot, currentResult?.bestMatchUrl]);
 
   const activeToma = sortedTomas[activeTomaIndex];
   const sortedVersions = useMemo(() => {
@@ -614,9 +639,51 @@ export default function HCEView({
 
   if (loading || !patient) {
     return (
-      <div className="flex flex-col items-center justify-center py-40 gap-4">
-        <div className="w-12 h-12 border-4 border-[var(--accent-clinical)] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[var(--text-secondary)] font-bold animate-pulse">Recuperando Historia Clínica...</p>
+      <div className="w-full min-h-screen bg-[var(--bg-clinical)] p-8 max-w-7xl mx-auto flex flex-col gap-6 font-sans">
+        {/* Cabecera Demográfica Skeleton */}
+        <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-[2rem] p-6 shadow-sm flex items-start justify-between">
+          <div className="flex items-center gap-6 w-full">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--bg-clinical)] animate-pulse border border-[var(--border-clinical)]"></div>
+            <div className="flex-1 space-y-3">
+              <div className="h-6 bg-[var(--bg-clinical)] rounded-lg w-1/4 animate-pulse"></div>
+              <div className="flex gap-2">
+                <div className="h-6 bg-[var(--bg-clinical)] rounded-lg w-20 animate-pulse"></div>
+                <div className="h-6 bg-[var(--bg-clinical)] rounded-lg w-24 animate-pulse"></div>
+                <div className="h-6 bg-[var(--bg-clinical)] rounded-lg w-32 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Panel Izquierdo Skeleton */}
+          <div className="lg:w-80 flex flex-col gap-6 shrink-0">
+            <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-[2rem] p-6 shadow-sm min-h-[300px]">
+              <div className="h-5 bg-[var(--bg-clinical)] rounded-md w-1/2 mb-6 animate-pulse"></div>
+              <div className="space-y-4">
+                <div className="h-16 bg-[var(--bg-clinical)] rounded-xl w-full animate-pulse"></div>
+                <div className="h-16 bg-[var(--bg-clinical)] rounded-xl w-full animate-pulse"></div>
+                <div className="h-16 bg-[var(--bg-clinical)] rounded-xl w-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Panel Derecho (Contenido Clínico) Skeleton */}
+          <div className="flex-1 flex flex-col gap-6">
+            <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-[2rem] p-6 shadow-sm min-h-[500px]">
+              <div className="h-6 bg-[var(--bg-clinical)] rounded-md w-1/3 mb-8 animate-pulse"></div>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="h-20 bg-[var(--bg-clinical)] rounded-xl animate-pulse"></div>
+                <div className="h-20 bg-[var(--bg-clinical)] rounded-xl animate-pulse"></div>
+              </div>
+              <div className="space-y-4">
+                <div className="h-4 bg-[var(--bg-clinical)] rounded-md w-full animate-pulse"></div>
+                <div className="h-4 bg-[var(--bg-clinical)] rounded-md w-11/12 animate-pulse"></div>
+                <div className="h-4 bg-[var(--bg-clinical)] rounded-md w-9/12 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -814,15 +881,16 @@ export default function HCEView({
   const ordenActivo = activeVersion?.ordenToma ?? 1;
 
   return (
-    <div className="flex flex-col w-full pt-8 pb-40">
+    <div className="flex flex-col w-full pt-8 pb-40 clinical-surface">
       <div className="flex gap-8 items-start justify-center">
         <aside className="w-52 shrink-0 hidden lg:block">
           <TomaTimeline
             sortedTomas={sortedTomas}
             activeIndex={activeTomaIndex}
             activeVersionIndex={activeVersionIndex}
-            isHCEALG={formId === 'hce_alg' || formId === 'hce_mir' || formId === 'hce_obs'}
+            isHCEALG={true}
             query={query}
+            matchedRegistros={currentResult?.matchedRegistros}
             onSelect={(tIdx, vIdx) => { 
               onTomaNavigate(tIdx, vIdx); 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 
@@ -831,114 +899,35 @@ export default function HCEView({
         </aside>
 
         <div className="flex-1 min-w-0 max-w-4xl">
-          {(formId === 'hce_alg' || formId === 'hce_mir' || formId === 'hce_obs') ? (
             <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-xl mb-4 shadow-sm overflow-hidden flex flex-col">
               <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 border-b border-[var(--border-clinical)] bg-[#FFF9E5]">
                 <div className="flex items-center gap-2 min-w-[140px]">
                   <span className="text-[16px] font-black text-slate-800 uppercase">NHC:</span>
                   <span className="text-[20px] font-black text-slate-900">{patient.nhc}</span>
                 </div>
-                <HeaderField label="CIPA" value={demo['cipa']} />
-                <HeaderField label="EC_Sexo" value={demo['sexo']} />
-                  <HeaderField label="F_Nacimiento" value={demo['fechaNacimiento']} />
+                <HeaderField label="CIPA" value={demo['cipa'] || demo['CIPA']} />
+                <HeaderField label="EC_Sexo" value={demo['sexo'] || demo['Sexo']} />
+                  <HeaderField label="F_Nacimiento" value={demo['fechaNacimiento'] || demo['Fecha de Nacimiento']} />
                 </div>
 
               <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 bg-white">
-                <HeaderField label="C.P" value={demo['cp']} />
-                <HeaderField label="Edad" value={activeVersion?.data['Edad'] || activeVersion?.data['EDAD']} />
-                <HeaderField label="AMBITO" value={activeVersion?.data['Ámbito'] || activeVersion?.data['AMBITO']} />
+                <HeaderField label="C.P" value={demo['cp'] || demo['Código Postal']} />
+                <HeaderField label="Edad" value={demo['edad'] || activeVersion?.data['Edad'] || activeVersion?.data['EDAD']} />
+                <HeaderField label="AMBITO" value={demo['ambito'] || activeVersion?.data['Ámbito'] || activeVersion?.data['AMBITO']} />
                 <HeaderField label="EC_Proceso2" value={activeVersion?.data['EC_Proceso2'] || activeVersion?.data['Proceso 2']} />
-                <HeaderField label="UNIDAD" value={demo['unidadEnfermeria']} />
+                <HeaderField label="UNIDAD" value={demo['unidadEnfermeria'] || demo['Unidad de Enfermería']} />
                 <div className="flex-1" />
                 <HeaderField 
                   label="ALERGIAS" 
-                  value={demo['reacciones'] || activeVersion?.data['ALERGIAS'] || activeVersion?.data['Alergias']} 
-                  highlight={!!(demo['reacciones'] || activeVersion?.data['ALERGIAS'] || activeVersion?.data['Alergias']) && String(demo['reacciones'] || activeVersion?.data['ALERGIAS'] || activeVersion?.data['Alergias']).toUpperCase() !== 'NO CONSTAN'} 
+                  value={demo['reacciones'] || demo['Alergias'] || activeVersion?.data['ALERGIAS'] || activeVersion?.data['Alergias']} 
+                  highlight={!!(demo['reacciones'] || demo['Alergias'] || activeVersion?.data['ALERGIAS'] || activeVersion?.data['Alergias']) && String(demo['reacciones'] || demo['Alergias'] || activeVersion?.data['ALERGIAS'] || activeVersion?.data['Alergias']).toUpperCase() !== 'NO CONSTAN'} 
                 />
               </div>
             </div>
 
-          ) : (
-            <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-3xl p-6 mb-6 shadow-xl relative overflow-hidden">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-                <div className="flex items-center gap-8">
-                  <PatientAvatar gender={getGender(demo)} />
-                  <div className="flex flex-col">
-                    <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight uppercase leading-none mb-2">
-                      Paciente {patient.nhc}
-                    </h1>
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-3 py-1 rounded-full self-start">
-                      Historia Activa · {sortedTomas.length} toma{sortedTomas.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3 max-w-xl">
-                  <DemoChip label="NHC" value={patient.nhc} />
-                  {['EDAD', 'SEXO', 'CIUDAD', 'CP'].map(label => {
-                    const key = Object.keys(demo).find(k => k.toUpperCase() === label.toUpperCase());
-                    const val = key ? demo[key] : null;
-                    if (val) return <DemoChip key={label} label={label === 'CP' ? 'C.P.' : label} value={val} />;
-                    return null;
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
           {activeToma ? (
             <>
-              <div className={`flex items-center justify-between mb-4 bg-[var(--surface-clinical)] border border-[var(--accent-clinical)]/20 rounded-2xl px-6 py-4 shadow-sm ${(formId === 'hce_alg' || formId === 'hce_mir' || formId === 'hce_obs') ? 'hidden' : ''}`}>
-                <div className="flex items-center gap-6">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Toma</span>
-                    <span className="text-[18px] font-black text-[var(--accent-clinical)] flex items-center gap-1.5">
-                      <Hash size={14} />
-                      {activeToma.idToma}
-                    </span>
-                  </div>
-                  <div className="w-px h-8 bg-[var(--border-clinical)]" />
-                  <div className="flex flex-col items-center">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Versión / Orden</span>
-                    <div className="flex items-center gap-2">
-                        <button disabled={!hasPrevVersion} onClick={() => onTomaNavigate(activeTomaIndex, activeVersionIndex - 1)} className="p-1 hover:bg-[var(--accent-clinical)]/10 rounded disabled:opacity-20 transition-all text-[var(--text-secondary)]">
-                            <ChevronLeft size={16} />
-                        </button>
-                        <span className={`text-[14px] font-black text-[var(--text-primary)] w-8 text-center px-2 rounded border ${activeVersion?.data?._is_duplicate ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-[var(--bg-clinical)] border-[var(--border-clinical)]'}`}>
-                            {ordenActivo}
-                        </span>
-                        <button disabled={!hasNextVersion} onClick={() => onTomaNavigate(activeTomaIndex, activeVersionIndex + 1)} className="p-1 hover:bg-[var(--accent-clinical)]/10 rounded disabled:opacity-20 transition-all text-[var(--text-secondary)]">
-                            <ChevronRight size={16} />
-                        </button>
-                    </div>
-                  </div>
-                  <div className="w-px h-8 bg-[var(--border-clinical)]" />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Fecha / Hora</span>
-                    <span className="text-[14px] font-black text-[var(--text-primary)] flex items-center gap-1.5">
-                      <Calendar size={12} className="text-[var(--accent-clinical)]" />
-                      {fechaActiva} <span className="opacity-40 font-light mx-1">|</span> {horaActiva}
-                    </span>
-                  </div>
-                  {activeVersion?.data?._is_duplicate && (
-                    <>
-                      <div className="w-px h-8 bg-[var(--border-clinical)]" />
-                      <div className="flex flex-col items-center">
-                          <AlertTriangle size={16} className="text-amber-500 mb-1" />
-                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Duplicado</span>
-                      </div>
-                    </>
-                  )}
-                  {activeTomaIndex === 0 && activeVersionIndex === 0 && (
-                    <>
-                      <div className="w-px h-8 bg-[var(--border-clinical)]" />
-                      <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-600 text-white px-2.5 py-1 rounded-full">
-                        Actual
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-4 hidden">
                   <button
                     disabled={!hasPrevToma}
                     onClick={() => { onTomaNavigate(activeTomaIndex - 1, 0); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
@@ -957,7 +946,6 @@ export default function HCEView({
                     Siguiente <ChevronRight size={14} />
                   </button>
                 </div>
-              </div>
 
 
 

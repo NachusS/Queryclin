@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { read, utils } from 'xlsx';
 import { AutoMapper } from '../mapper/AutoMapper';
-import { schemaStore } from '../persistence/SchemaStore';
+import { schemaStore } from '../store/SchemaStore';
 import { ClinicalFormSchema } from '../domain/types';
 
 export function ImportWizard({ onComplete }: { onComplete: (schemaId: string) => void }) {
@@ -46,9 +46,12 @@ export function ImportWizard({ onComplete }: { onComplete: (schemaId: string) =>
 
   return (
     <div className="p-8 max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 mt-8">
-      <h1 className="text-2xl font-black text-slate-800 mb-6 uppercase tracking-wider border-b border-emerald-500 pb-4">
-        Asistente de Importación y Mapping
+      <h1 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-wider">
+        Creador Automático de Plantillas
       </h1>
+      <p className="text-sm text-slate-500 mb-6 pb-4 border-b border-emerald-500">
+        Analiza un archivo Excel o CSV para auto-generar un formulario clínico a medida.
+      </p>
 
       {step === 1 && (
         <div className="flex flex-col gap-4">

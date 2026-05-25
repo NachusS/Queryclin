@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { searchEngine } from '../engine';
+import { queryEngine } from '../engine/QueryEngine';
 import { HCEData } from '../core/types';
 
 // Mock de la base de datos
@@ -49,6 +50,10 @@ vi.mock('../storage/indexedDB', () => ({
 }));
 
 describe('SearchEngine', () => {
+  afterAll(() => {
+    queryEngine.stopBackgroundCleanup();
+  });
+
   const sampleData: HCEData = {
     patients: {
       '123': {

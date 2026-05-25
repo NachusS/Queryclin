@@ -6,10 +6,52 @@ interface DynamicFieldRendererProps {
   field: ClinicalField;
   value: any;
   searchQuery?: string;
+  record?: Record<string, any>;
 }
 
-export function DynamicFieldRenderer({ field, value, searchQuery = '' }: DynamicFieldRendererProps) {
-  if (!field.visible || value === undefined || value === null || String(value).trim() === '') {
+export const DynamicFieldRenderer = React.memo<DynamicFieldRendererProps>(({ field, value, searchQuery = '', record }) => {
+  if (!field.visible) {
+    return null;
+  }
+
+  // Soporte para renderizado Multivalor Anidado (ej. multivalores $)
+  if (field.children && field.children.length > 0 && record) {
+    const activeChildren = field.children.filter(child => {
+      const childVal = record[child.sourceField];
+      return child.visible && childVal !== undefined && childVal !== null && String(childVal).trim() !== '';
+    });
+
+    if (activeChildren.length > 0) {
+      return (
+        <div className="flex flex-col mb-4 bg-slate-50/50 rounded-lg border border-slate-200/50 p-3">
+          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#0056b3] leading-none mb-3 border-b border-[#0056b3]/10 pb-2">
+            {field.label}:
+          </span>
+          <div className="flex flex-col gap-3 pl-2">
+            {activeChildren.map(child => {
+              const childVal = record[child.sourceField];
+              return (
+                <div key={child.id} className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-500 mb-0.5">
+                    {child.label}:
+                  </span>
+                  <span className="text-[12px] text-slate-700 font-semibold">
+                    {searchQuery ? (
+                      <HighlightedText text={String(childVal)} query={searchQuery} />
+                    ) : (
+                      String(childVal)
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  if (value === undefined || value === null || String(value).trim() === '') {
     return null;
   }
 
@@ -34,7 +76,7 @@ export function DynamicFieldRenderer({ field, value, searchQuery = '' }: Dynamic
             <li key={idx} className="flex items-start gap-2">
               <span className="text-[#0056b3] text-lg leading-none select-none mt-[-2px]">•</span>
               <span className="text-[12px] font-medium text-slate-700">
-                {field.highlightable && searchQuery ? <HighlightedText text={val} query={searchQuery} /> : val}
+                {searchQuery ? <HighlightedText text={val} query={searchQuery} /> : val}
               </span>
             </li>
           ))}
@@ -48,12 +90,12 @@ export function DynamicFieldRenderer({ field, value, searchQuery = '' }: Dynamic
   const renderValue = () => {
     const valStr = String(value);
     if (!isNarrative || !valStr.includes('\n')) {
-      return field.highlightable && searchQuery ? <HighlightedText text={valStr} query={searchQuery} /> : valStr;
+      return searchQuery ? <HighlightedText text={valStr} query={searchQuery} /> : valStr;
     }
 
     return valStr.split('\n').map((line, i) => (
       <React.Fragment key={i}>
-        {field.highlightable && searchQuery ? <HighlightedText text={line} query={searchQuery} /> : line}
+        {searchQuery ? <HighlightedText text={line} query={searchQuery} /> : line}
         {i < valStr.split('\n').length - 1 && <br />}
       </React.Fragment>
     ));
@@ -69,4 +111,4 @@ export function DynamicFieldRenderer({ field, value, searchQuery = '' }: Dynamic
       </span>
     </div>
   );
-}
+});

@@ -9,7 +9,7 @@ interface DynamicSectionRendererProps {
   debugMode?: boolean;
 }
 
-export function DynamicSectionRenderer({ section, data, searchQuery = '', debugMode = false }: DynamicSectionRendererProps) {
+export const DynamicSectionRenderer = React.memo<DynamicSectionRendererProps>(({ section, data, searchQuery = '', debugMode = false }) => {
   // Verificar si la sección tiene algún dato visible
   const hasVisibleData = section.groups.some(group => 
     group.fields.some(field => {
@@ -22,11 +22,12 @@ export function DynamicSectionRenderer({ section, data, searchQuery = '', debugM
   if (!hasVisibleData && !debugMode) return null;
 
   return (
-    <div className="mb-8">
-      <div className="w-full mb-6">
-        <div className="bg-[#1e293b] text-white px-5 py-2 text-[13px] font-black uppercase tracking-[0.15em] border-l-4 border-emerald-500 shadow-md flex items-center justify-between">
-          <span>{section.title}</span>
-          <div className="h-px flex-1 bg-emerald-500/20 ml-6 opacity-30" />
+    <div className="flex flex-col gap-2">
+      <div className="w-full mb-6 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#004b93] to-slate-800 rounded-lg transform skew-x-[-12deg] z-0 shadow-lg border border-slate-700" />
+        <div className="relative z-10 px-6 py-2.5 text-white flex items-center gap-3 font-bold tracking-widest text-sm uppercase">
+          <div className="w-1.5 h-4 bg-[var(--accent-clinical)] rounded-full shadow-[0_0_8px_var(--accent-clinical)]" />
+          {section.title}
         </div>
       </div>
       
@@ -43,4 +44,4 @@ export function DynamicSectionRenderer({ section, data, searchQuery = '', debugM
       </div>
     </div>
   );
-}
+});

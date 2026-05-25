@@ -1,4 +1,4 @@
-import { HCEData, Patient } from '../core/types';
+import { Patient } from '../core/types';
 import { db } from '../storage/indexedDB';
 import { FormMapping } from '../core/mappings';
 import { parseClinicalDate } from '../utils/dateParser';
@@ -78,12 +78,22 @@ export class IndexerService {
         const existingMeta = skeleton.tomasMeta[idToma];
         const currentOrden = registro.ordenToma || 0;
         
-        if (!existingMeta || currentOrden > (existingMeta.maxOrden || -1)) {
+        if (!existingMeta) {
           skeleton.tomasMeta[idToma] = { 
-            date: time || (existingMeta?.date), 
-            service: srv || (existingMeta?.service),
-            maxOrden: currentOrden
+            date: time, 
+            service: srv,
+            maxOrden: currentOrden,
+            categories: [],
+            fields: []
           };
+        } else {
+          if (currentOrden > (existingMeta.maxOrden || -1)) {
+            existingMeta.date = time || existingMeta.date;
+            existingMeta.service = srv || existingMeta.service;
+            existingMeta.maxOrden = currentOrden;
+          }
+          if (!existingMeta.categories) existingMeta.categories = [];
+          if (!existingMeta.fields) existingMeta.fields = [];
         }
 
         let docTokens: string[] = [];
@@ -115,6 +125,13 @@ export class IndexerService {
              else if (upperKey.includes('INGRESO') || upperKey.includes('ALTA') || upperKey.includes('EVOLUCI') || upperKey.includes('HOSPITAL')) categoryStr = 'PROCESO HOSP/CEX';
            }
 
+           if (!skeleton.tomasMeta[idToma].categories.includes(categoryStr)) {
+             skeleton.tomasMeta[idToma].categories.push(categoryStr);
+           }
+           if (!skeleton.tomasMeta[idToma].fields.includes(key)) {
+             skeleton.tomasMeta[idToma].fields.push(key);
+           }
+
            let textToTokenize = String(value);
            const valStr = textToTokenize.toLowerCase().trim();
            const isNegative = IndexerService.NEG_VALUE_WORDS.has(valStr);
@@ -131,7 +148,7 @@ export class IndexerService {
             // Si el valor es una negación clínica, indexamos el token de negación y SALTAMOS los positivos
             if (isNegative) {
                if (!this.negTokenCache[key]) {
-                  this.negTokenCache[key] = 'no_' + key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  this.negTokenCache[key] = 'neg_' + key.toLowerCase().replace(/[^a-z0-9]/g, '');
                }
                docTokens.push(this.negTokenCache[key]);
                // No indexamos los tokens de la palabra clave si está negada en este campo

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { QueryEngine } from '../engine/QueryEngine';
 import { IndexerService } from '../engine/IndexerService';
 import { Patient } from '../core/types';
@@ -71,6 +71,10 @@ describe('QueryEngine - Filter Validation', () => {
     indexerService = new IndexerService();
   });
 
+  afterEach(() => {
+    queryEngine.stopBackgroundCleanup();
+  });
+
   async function indexData(patients: Record<string, Patient>) {
     indexerService.startIndexing();
     for (const nhc in patients) {
@@ -86,7 +90,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          }
         }
       }
     });
@@ -106,7 +114,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'ASMA' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'ASMA' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'ASMA' } }
+          }
         }
       }
     });
@@ -124,7 +136,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          }
         }
       }
     });
@@ -142,8 +158,16 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2023-01-01', 'Enfermedad Actual': 'DIABETES' } }] },
-          'T2': { idToma: 'T2', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2023-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2023-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          },
+          'T2': { 
+            idToma: 'T2', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES' } }
+          }
         }
       }
     });
@@ -161,7 +185,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': '' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': '' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': '' } }
+          }
         }
       }
     });
@@ -176,7 +204,11 @@ describe('QueryEngine - Filter Validation', () => {
         nhc: 'P1',
         demographics: {},
         tomas: {
-          'T1': { idToma: 'T1', registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES ASMA' } }] }
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES ASMA' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES ASMA' } }
+          }
         }
       }
     });
@@ -186,5 +218,52 @@ describe('QueryEngine - Filter Validation', () => {
 
     const resultsNot = await queryEngine.search('DIABETES NOT ASMA', { categories: ['02-ANAMNESIS Y EXPLORACIÓN'] });
     expect(resultsNot.length).toBe(0);
+  });
+
+  it('Debe expandir correctamente sinónimos multi-palabra', async () => {
+    await indexData({
+      'P1': {
+        nhc: 'P1',
+        demographics: {},
+        tomas: {
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'el paciente tiene insuficiencia renal cronica' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'el paciente tiene insuficiencia renal cronica' } }
+          }
+        }
+      }
+    });
+
+    const results = await queryEngine.search('insuficiencia renal cronica');
+    expect(results.length).toBe(1);
+  });
+
+  it('Debe filtrar correctamente búsquedas con query vacía usando categorías y campos', async () => {
+    await indexData({
+      'P1': {
+        nhc: 'P1',
+        demographics: {},
+        tomas: {
+          'T1': { 
+            idToma: 'T1', 
+            registros: [{ ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'HIPERTENSION' } }],
+            latest: { ordenToma: 1, data: { FECHA: '2024-01-01', 'Enfermedad Actual': 'DIABETES', 'Diagnóstico': 'HIPERTENSION' } }
+          }
+        }
+      }
+    });
+
+    const resultsCat = await queryEngine.search('', { categories: ['02-ANAMNESIS Y EXPLORACIÓN'] });
+    expect(resultsCat.length).toBe(1);
+
+    const resultsCatNo = await queryEngine.search('', { categories: ['01-ANTECEDENTES'] });
+    expect(resultsCatNo.length).toBe(0);
+
+    const resultsField = await queryEngine.search('', { fields: ['Diagnóstico'] });
+    expect(resultsField.length).toBe(1);
+
+    const resultsFieldNo = await queryEngine.search('', { fields: ['Antecedentes Personales'] });
+    expect(resultsFieldNo.length).toBe(0);
   });
 });

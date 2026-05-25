@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Search, Shield, Zap, FileText, Hospital, Users } from 'lucide-react';
+import { SYSTEM_VERSION } from '../core/version';
 
 interface HelpProps {
   onBack: () => void;
@@ -129,7 +130,7 @@ export default function Help({ onBack }: HelpProps) {
       </div>
 
       <div className="text-center mt-16 text-[var(--text-secondary)] text-[10px] font-medium tracking-widest uppercase opacity-50">
-        Queryclin V6.2.2 &copy; 2026 - Auditoría y Calidad Clínica Asegurada
+        Queryclin {SYSTEM_VERSION} &copy; 2026 - Auditoría y Calidad Clínica Asegurada
       </div>
     </div>
   );

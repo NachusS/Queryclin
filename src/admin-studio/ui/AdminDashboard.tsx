@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ClinicalFormSchema } from '../domain/types';
-import { schemaStore } from '../persistence/SchemaStore';
+import { schemaStore } from '../store/SchemaStore';
 import { ImportWizard } from '../importer/ImportWizard';
 import { TemplateGenerator } from '../mapper/TemplateGenerator';
 import { CLINICAL_RESOURCES } from '../domain/resources';
