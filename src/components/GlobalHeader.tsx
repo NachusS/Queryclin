@@ -60,7 +60,7 @@ export default function GlobalHeader({
                     (activeFilters?.onlyLatestSnapshot ? 1 : 0) > 0;
 
   return (
-    <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex items-center px-6 gap-6 shadow-sm backdrop-blur-md bg-opacity-95 shrink-0 z-50">
+    <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex items-center px-6 gap-6 shadow-sm backdrop-blur-md bg-opacity-95 shrink-0 z-50 clinical-surface">
       {/* IZQUIERDA: Marca, NachuS y Versión (Siempre visible) */}
       <div className="flex items-center gap-6 shrink-0">
         <div onClick={onGoHome} className="flex items-center gap-3 cursor-pointer group">
@@ -87,7 +87,7 @@ export default function GlobalHeader({
           className="hidden lg:flex items-center gap-2 px-3 py-1 bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] rounded-full border border-[var(--accent-clinical)]/20 cursor-pointer transition-all hover:bg-[var(--accent-clinical)]/20 shadow-sm active:scale-95"
           title={`Ver guía cronológica (Build: ${buildDate})`}
         >
-          <span className="text-[10px] font-black tracking-widest">V{version}</span>
+          <span className="text-[10px] font-black tracking-widest">{version.startsWith('V') ? version : `V${version}`}</span>
           <span className="w-[1px] h-3 bg-[var(--accent-clinical)]/30"></span>
           <span className="text-[9px] font-bold opacity-70">{buildDate}</span>
         </div>

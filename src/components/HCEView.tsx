@@ -146,12 +146,12 @@ const ClinicalField = memo(function ClinicalField({ label, value, query, highlig
       {isMultivalue ? (
         <div className="mt-1 space-y-1.5">
           {/* Lista de hallazgos abierta por defecto sin contador */}
-          <div className="bg-slate-50/50 dark:bg-slate-800/30 border-2 border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden">
-            <ul className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="bg-slate-50/50 border-2 border-slate-100 rounded-2xl overflow-hidden">
+            <ul className="flex flex-col divide-y divide-slate-100">
               {value.map((item, idx) => (
-                <li key={idx} className="px-5 py-2.5 flex items-start gap-3 hover:bg-white dark:hover:bg-slate-800 transition-colors">
+                <li key={idx} className="px-5 py-2.5 flex items-start gap-3 hover:bg-white transition-colors">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-clinical)] mt-2 shrink-0" />
-                  <span className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  <span className="text-[15px] font-bold text-slate-800 leading-tight">
                     {shouldHighlight ? <HighlightedText text={item} query={query} /> : item}
                   </span>
                 </li>
@@ -168,11 +168,11 @@ const ClinicalField = memo(function ClinicalField({ label, value, query, highlig
           {displayValue}
         </span>
       ) : isLong ? (
-        <p className="text-[15px] text-slate-900 dark:text-slate-100 leading-[1.75] whitespace-pre-wrap font-bold">
+        <p className="text-[15px] text-slate-900 leading-[1.75] whitespace-pre-wrap font-bold">
           {shouldHighlight ? <HighlightedText text={formattedValue} query={query} /> : formattedValue}
         </p>
       ) : (
-        <span className="text-[16px] text-slate-900 dark:text-slate-100 font-black leading-snug whitespace-pre-wrap">
+        <span className="text-[16px] text-slate-900 font-black leading-snug whitespace-pre-wrap">
           {shouldHighlight ? <HighlightedText text={formattedValue} query={query} /> : formattedValue}
         </span>
       )}
@@ -380,7 +380,7 @@ const TomaTimeline = memo(function TomaTimeline({
                 <div className="bg-[#FFF9E5] px-3 py-1.5 text-[13px] font-black text-slate-800 border-b border-slate-200 flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1">
                     <Hash size={11} className="text-slate-500" />
-                    {t.idToma}
+                    <HighlightedText text={t.idToma} query={query} />
                     {hasMatch(t.idToma) && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-1" title="Contiene coincidencias" />
                     )}
@@ -420,7 +420,9 @@ const TomaTimeline = memo(function TomaTimeline({
                         {orden}
                       </span>
                       <div className="px-3 py-2 flex-1 flex items-center justify-end gap-1.5 tabular-nums overflow-hidden">
-                        <span className={`font-bold truncate ${!isActive && isMatch ? 'text-amber-700' : ''}`}>{fecha}</span>
+                        <span className={`font-bold truncate ${!isActive && isMatch ? 'text-amber-700' : ''}`}>
+                          <HighlightedText text={fecha} query={query} />
+                        </span>
                         <span className={`text-[9px] font-medium ${isActive ? 'text-blue-100' : isMatch ? 'text-amber-500' : 'text-slate-400'}`}>{hora}</span>
                       </div>
                     </button>
@@ -435,7 +437,7 @@ const TomaTimeline = memo(function TomaTimeline({
           const isLatest = tIdx === 0;
           const fecha = extractFecha(t.latest?.data || {});
           const hora = extractHora(t.latest?.data || {});
-          const usuario = t.latest?.data['Usuario'] || t.latest?.data['USUARIO_TOMA'] || '';
+          const usuario = String(t.latest?.data['Usuario'] || t.latest?.data['USUARIO_TOMA'] || '');
 
           return (
             <button
@@ -458,7 +460,7 @@ const TomaTimeline = memo(function TomaTimeline({
                       : 'text-[var(--text-secondary)]'
                 }`}>
                   <Hash size={9} />
-                  {t.idToma}
+                  <HighlightedText text={t.idToma} query={query} />
                   {!isActive && isMatch && (
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-0.5" />
                   )}
@@ -471,14 +473,16 @@ const TomaTimeline = memo(function TomaTimeline({
               </div>
               <div className={`flex items-center gap-1.5 text-[11px] font-bold ${isActive ? 'text-[var(--accent-clinical)]' : isMatch ? 'text-amber-700' : 'text-[var(--text-primary)]'}`}>
                 <Calendar size={10} className={isActive ? 'text-[var(--accent-clinical)]' : isMatch ? 'text-amber-500' : 'text-[var(--text-secondary)] opacity-60'} />
-                <span>{fecha}</span>
+                <span><HighlightedText text={fecha} query={query} /></span>
               </div>
               <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isActive ? 'text-[var(--accent-clinical)]/70' : isMatch ? 'text-amber-600/70' : 'text-[var(--text-secondary)] opacity-70'}`}>
                 <Clock size={9} />
                 <span>{hora}</span>
               </div>
               {usuario && (
-                <span className="text-[9px] text-[var(--text-secondary)] opacity-50 truncate max-w-[140px]">{usuario}</span>
+                <span className="text-[9px] text-[var(--text-secondary)] opacity-50 truncate max-w-[140px]">
+                  <HighlightedText text={usuario} query={query} />
+                </span>
               )}
             </button>
           );
@@ -550,6 +554,19 @@ export default function HCEView({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, results.length, onNavigate]);
+
+  // Scroll contextual: localiza y destaca el primer match en el visor HCE
+  useEffect(() => {
+    if (query && query.trim() !== '' && !loading && patient) {
+      const timer = setTimeout(() => {
+        const firstHighlight = document.querySelector('.highlight-match');
+        if (firstHighlight) {
+          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [query, activeTomaIndex, activeVersionIndex, currentIndex, loading, patient]);
 
   const sortedTomas = useMemo(() => {
     if (!patient || !patient.tomas) return [];
@@ -864,7 +881,7 @@ export default function HCEView({
   const ordenActivo = activeVersion?.ordenToma ?? 1;
 
   return (
-    <div className="flex flex-col w-full pt-8 pb-40">
+    <div className="flex flex-col w-full pt-8 pb-40 clinical-surface">
       <div className="flex gap-8 items-start justify-center">
         <aside className="w-52 shrink-0 hidden lg:block">
           <TomaTimeline

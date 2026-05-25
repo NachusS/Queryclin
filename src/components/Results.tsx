@@ -5,6 +5,7 @@ import { db } from '../storage/indexedDB';
 import { Patient, getGender } from '../core/types';
 import * as XLSX from 'xlsx';
 import { transformPatientsForExport, ExportMode } from '../utils/exportUtils';
+import HighlightedText from './HighlightedText';
 
 interface ResultsProps {
   results: SearchResult[];
@@ -28,7 +29,7 @@ const PatientAvatar = memo(function PatientAvatar({ gender, size = 16 }: { gende
   );
 });
 
-const ResultRow = memo(function ResultRow({ res, patient, onSelect }: { res: SearchResult, patient: Patient | null, onSelect: (r: SearchResult) => void }) {
+const ResultRow = memo(function ResultRow({ res, patient, query, onSelect }: { res: SearchResult, patient: Patient | null, query: string, onSelect: (r: SearchResult) => void }) {
   const loading = !patient;
   const demographics = patient?.demographics || {};
   
@@ -47,6 +48,10 @@ const ResultRow = memo(function ResultRow({ res, patient, onSelect }: { res: Sea
     displayValue = nameKey ? demographics[nameKey] : `Paciente ${res.nhc}`;
   }
 
+  const displayString = Array.isArray(displayValue)
+    ? displayValue.join(', ')
+    : (displayValue || '');
+
   return (
     <div 
       onClick={() => onSelect(res)}
@@ -58,7 +63,9 @@ const ResultRow = memo(function ResultRow({ res, patient, onSelect }: { res: Sea
       <div className="flex-1 flex items-center gap-4 min-w-0">
         <div className="flex flex-col min-w-[100px]">
           <span className="text-[10px] font-black text-[var(--accent-clinical)] uppercase tracking-tighter leading-none mb-1">NHC</span>
-          <span className="text-[14px] font-bold text-[var(--text-primary)] font-mono leading-none">{res.nhc}</span>
+          <span className="text-[14px] font-bold text-[var(--text-primary)] font-mono leading-none">
+            <HighlightedText text={res.nhc} query={query} />
+          </span>
         </div>
         
         <div className="flex flex-col flex-1 min-w-0">
@@ -66,7 +73,9 @@ const ResultRow = memo(function ResultRow({ res, patient, onSelect }: { res: Sea
           {loading ? (
             <div className="h-4 w-32 bg-[var(--border-clinical)] animate-pulse rounded"></div>
           ) : (
-            <span className="text-[14px] font-bold text-[var(--text-primary)] truncate uppercase tracking-tight">{displayValue}</span>
+            <span className="text-[14px] font-bold text-[var(--text-primary)] truncate uppercase tracking-tight">
+              <HighlightedText text={displayString} query={query} />
+            </span>
           )}
         </div>
       </div>
@@ -290,7 +299,7 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
       {/* Lista de Resultados (Layout de Fila Unica) */}
       <div className="flex flex-col gap-2">
         {visibleResults.map((res) => (
-          <ResultRow key={res.nhc} res={res} patient={patientsMap[res.nhc] || null} onSelect={onSelect} />
+          <ResultRow key={res.nhc} res={res} patient={patientsMap[res.nhc] || null} query={query} onSelect={onSelect} />
         ))}
 
         {results.length === 0 && (

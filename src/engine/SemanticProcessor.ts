@@ -4,6 +4,13 @@ import { normalizeString } from '../utils/stringNormalizer';
 const VARIANT_TO_CANONICAL = new Map<string, string>();
 const EXPANSION_MAP = new Map<string, string[]>(); // Canonical -> all valid query expansions
 
+const REVERSE_STEM_MAP = new Map<string, string[]>();
+for (const [variant, stem] of Object.entries(STEM_WHITELIST)) {
+  const list = REVERSE_STEM_MAP.get(stem) || [];
+  list.push(variant);
+  REVERSE_STEM_MAP.set(stem, list);
+}
+
 // 1. Populate EXACT_SYNONYMS (Bidirectional mapping)
 for (const [canonical, variants] of Object.entries(EXACT_SYNONYMS)) {
   const canonicalClean = normalizeString(canonical).replace(/[^a-z0-9]/g, '');
@@ -171,8 +178,20 @@ export class SemanticProcessor {
       allVariants.add(term);
       allVariants.add(stemmed);
       
+      // Add reverse stems for direct term and stemmed term
+      const directRevStems = REVERSE_STEM_MAP.get(term) || [];
+      directRevStems.forEach(rv => allVariants.add(rv));
+      
+      const stemmedRevStems = REVERSE_STEM_MAP.get(stemmed) || [];
+      stemmedRevStems.forEach(rv => allVariants.add(rv));
+      
       const expansions = this.expand(stemmed);
-      expansions.forEach(exp => allVariants.add(exp));
+      expansions.forEach(exp => {
+        allVariants.add(exp);
+        // Add reverse stems for expansion variants too
+        const expRevStems = REVERSE_STEM_MAP.get(exp) || [];
+        expRevStems.forEach(rv => allVariants.add(rv));
+      });
     }
 
     if (allVariants.size === 0) return null;

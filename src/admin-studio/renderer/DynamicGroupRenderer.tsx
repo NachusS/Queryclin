@@ -65,7 +65,7 @@ export const DynamicGroupRenderer = React.memo<DynamicGroupRendererProps>(({ gro
                       {f.label}:
                     </div>
                     <div className="bg-[#F1F8E9] px-3 py-1.5 text-[11px] font-medium text-slate-800 flex items-center justify-center w-[85px] text-center tabular-nums">
-                      {f.highlightable && searchQuery ? <HighlightedText text={displayVal} query={searchQuery} /> : displayVal}
+                      {searchQuery ? <HighlightedText text={displayVal} query={searchQuery} /> : displayVal}
                     </div>
                   </div>
                 );

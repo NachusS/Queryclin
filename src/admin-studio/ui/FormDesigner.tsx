@@ -421,7 +421,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
           </DroppablePalette>
 
           {/* Clinical Canvas */}
-          <main className="flex-1 overflow-y-auto bg-[var(--bg-clinical)] p-12 hide-scrollbar">
+          <main className="flex-1 overflow-y-auto bg-[var(--bg-clinical)] p-12 hide-scrollbar clinical-surface">
             <div className="max-w-4xl mx-auto space-y-10 pb-20">
               
               {schema.sections.map(section => (

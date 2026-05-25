@@ -84,11 +84,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-const VERSION = pkg.version;
-const BUILD_DATE = __BUILD_DATE__;
+import { SYSTEM_VERSION, ADMIN_VERSION, BUILD_DATE, BUILD_LABEL } from './core/version';
 
-const ADMIN_STUDIO_VERSION = "2.0.3-STABLE";
-const ADMIN_STUDIO_DATE = "21/05/2026, 09:37";
+const VERSION = SYSTEM_VERSION;
+const BUILD_DATE_STR = `${BUILD_DATE} (${BUILD_LABEL})`;
+
+const ADMIN_STUDIO_VERSION = ADMIN_VERSION;
+const ADMIN_STUDIO_DATE = `${BUILD_DATE} (${BUILD_LABEL})`;
 
 type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
@@ -241,7 +243,7 @@ export default function App() {
           }
         }
         
-        text = XLSX.utils.sheet_to_csv(worksheet, { FS: delimiter || '|', raw: false });
+        text = XLSX.utils.sheet_to_csv(worksheet, { FS: delimiter || '|' });
         console.log('[App] Archivo Excel convertido a CSV para procesamiento. Errores rescatados.');
       } else {
         try {

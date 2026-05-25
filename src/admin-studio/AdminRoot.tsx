@@ -40,7 +40,7 @@ export function AdminRoot({ onExit, onGoHome, version, buildDate }: AdminRootPro
   return (
     <div className="absolute inset-0 z-[100] bg-[var(--bg-clinical)] overflow-hidden flex flex-col">
       {/* Cabecera Unificada de Admin Studio */}
-      <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex justify-between items-center px-6 relative z-[110] shadow-sm backdrop-blur-md bg-opacity-95 shrink-0">
+      <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex justify-between items-center px-6 relative z-[110] shadow-sm backdrop-blur-md bg-opacity-95 shrink-0 clinical-surface">
         <div className="flex items-center gap-6">
           <div onClick={onGoHome} className="flex items-center gap-3 cursor-pointer group">
             <div className="w-10 h-10 bg-[var(--accent-clinical)] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
@@ -56,7 +56,7 @@ export function AdminRoot({ onExit, onGoHome, version, buildDate }: AdminRootPro
           </div>
           
           <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] rounded-full border border-[var(--accent-clinical)]/20">
-            <span className="text-[10px] font-black tracking-widest">V{version}</span>
+            <span className="text-[10px] font-black tracking-widest">{version.startsWith('V') ? version : `V${version}`}</span>
             <span className="w-[1px] h-3 bg-[var(--accent-clinical)]/30"></span>
             <span className="text-[9px] font-bold opacity-70">{buildDate}</span>
           </div>

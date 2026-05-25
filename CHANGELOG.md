@@ -1,3 +1,14 @@
+## [7.1.1] - V7.1.1-STABLE - 2026-05-25
+### Añadido
+- **Centralización de Versiones (SSOT)**: Creación de `src/core/version.ts` y sincronización global en el encabezado de Queryclin, Admin Studio, ayudas e importación para asegurar consistencia visual de la versión.
+- **Resaltado Clínico Omnipresente**: Habilitación del resaltado por términos de búsqueda/sinónimos en todos los campos mediante `DynamicFieldRenderer.tsx` y `DynamicGroupRenderer.tsx` de forma nativa e incondicional.
+- **Desplazamiento Contextual en HCE**: Implementación de scroll automático hacia el primer término clínico resaltado al cargar la vista detallada del paciente (`HCEView.tsx`).
+
+### Corregido
+- **Robustez Visual de Contraste (Modo Oscuro)**: Introducción de la clase `.clinical-surface` con estilos CSS forzados para paneles de visualización, editor del diseñador de formularios y áreas de texto, garantizando legibilidad en contraste de luz clínica.
+- **Tipado Estricto de TypeScript**: Solucionado error TS2322 de asignación en `Results.tsx` y `HCEView.tsx` mediante coerción segura y soporte para arreglos en datos demográficos.
+- **Ingesta de Hojas de Cálculo**: Corregido argumento inválido en la llamada a `sheet_to_csv` de XLSX.
+
 ## [7.2.0] - V7.2.0-STABLE - 2026-05-25
 ### Añadido
 - **Búsqueda por Frase Exacta (Quoted Phrase Search)**: Soporte nativo para búsquedas exactas entre comillas dobles (ej: `"infarto miocardio"`). El motor realiza una pre-evaluación rápida mediante Okapi BM25 para obtener documentos candidatos y efectúa una validación secundaria exacta sobre los registros completos en un pipeline unificado.

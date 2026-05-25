@@ -2,6 +2,7 @@ import { streamCSV } from './csvStreamer';
 import { db } from '../storage/indexedDB';
 import { searchEngine } from '../engine';
 import { PatientData } from '../core/types';
+import { SYSTEM_VERSION } from '../core/version';
 
 import { FormMapping } from '../core/mappings';
 
@@ -18,7 +19,7 @@ self.onmessage = async (e: MessageEvent) => {
   let headerMap: Record<string, string> = {};
 
   try {
-    console.log('[Worker] Iniciando Ingesta Determinista (V6.2.2)...');
+    console.log(`[Worker] Iniciando Ingesta Determinista (${SYSTEM_VERSION})...`);
     
     const BATCH_SIZE = 2500;
     let recordsBatch: any[] = [];

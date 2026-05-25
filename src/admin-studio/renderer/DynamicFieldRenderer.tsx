@@ -36,7 +36,7 @@ export const DynamicFieldRenderer = React.memo<DynamicFieldRendererProps>(({ fie
                     {child.label}:
                   </span>
                   <span className="text-[12px] text-slate-700 font-semibold">
-                    {child.highlightable && searchQuery ? (
+                    {searchQuery ? (
                       <HighlightedText text={String(childVal)} query={searchQuery} />
                     ) : (
                       String(childVal)
@@ -76,7 +76,7 @@ export const DynamicFieldRenderer = React.memo<DynamicFieldRendererProps>(({ fie
             <li key={idx} className="flex items-start gap-2">
               <span className="text-[#0056b3] text-lg leading-none select-none mt-[-2px]">•</span>
               <span className="text-[12px] font-medium text-slate-700">
-                {field.highlightable && searchQuery ? <HighlightedText text={val} query={searchQuery} /> : val}
+                {searchQuery ? <HighlightedText text={val} query={searchQuery} /> : val}
               </span>
             </li>
           ))}
@@ -90,12 +90,12 @@ export const DynamicFieldRenderer = React.memo<DynamicFieldRendererProps>(({ fie
   const renderValue = () => {
     const valStr = String(value);
     if (!isNarrative || !valStr.includes('\n')) {
-      return field.highlightable && searchQuery ? <HighlightedText text={valStr} query={searchQuery} /> : valStr;
+      return searchQuery ? <HighlightedText text={valStr} query={searchQuery} /> : valStr;
     }
 
     return valStr.split('\n').map((line, i) => (
       <React.Fragment key={i}>
-        {field.highlightable && searchQuery ? <HighlightedText text={line} query={searchQuery} /> : line}
+        {searchQuery ? <HighlightedText text={line} query={searchQuery} /> : line}
         {i < valStr.split('\n').length - 1 && <br />}
       </React.Fragment>
     ));
