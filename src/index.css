@@ -1,79 +1,282 @@
 @import "tailwindcss";
 
 @layer base {
+  /* ─── LIGHT MODE: Base Clínico ─────────────────────────────────────────────── */
   :root {
-    --bg-clinical: #f8fafc;
-    --surface-clinical: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --accent-clinical: #2563eb;
-    --border-clinical: #e2e8f0;
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.4);
+    /* Backgrounds */
+    --bg-primary:         #f1f5f9;
+    --bg-secondary:       #e2e8f0;
+    --surface-primary:    #ffffff;
+    --surface-elevated:   #f8fafc;
+    --surface-overlay:    rgba(255,255,255,0.92);
+
+    /* Legacy aliases (backward compat) */
+    --bg-clinical:        #f1f5f9;
+    --surface-clinical:   #ffffff;
+
+    /* Borders */
+    --border-subtle:      #e2e8f0;
+    --border-muted:       #cbd5e1;
+    --border-strong:      #94a3b8;
+    --border-clinical:    #e2e8f0;
+
+    /* Text */
+    --text-primary:       #0f172a;
+    --text-secondary:     #475569;
+    --text-muted:         #94a3b8;
+    --text-inverse:       #ffffff;
+
+    /* Accent */
+    --accent-clinical:    #2563eb;
+    --accent-subtle:      rgba(37,99,235,0.08);
+    --accent-hover:       rgba(37,99,235,0.14);
+
+    /* Status */
+    --status-success-bg:   #ecfdf5;
+    --status-success-text: #065f46;
+    --status-success-border:#a7f3d0;
+    --status-warning-bg:   #fffbeb;
+    --status-warning-text: #92400e;
+    --status-warning-border:#fde68a;
+    --status-danger-bg:    #fef2f2;
+    --status-danger-text:  #991b1b;
+    --status-danger-border:#fecaca;
+    --status-info-bg:      #eff6ff;
+    --status-info-text:    #1e40af;
+    --status-info-border:  #bfdbfe;
+
+    /* Glassmorphism */
+    --glass-bg:           rgba(255,255,255,0.72);
+    --glass-border:       rgba(148,163,184,0.25);
+
+    /* Grid/Table cells */
+    --cell-value-bg:      #f0fdf4;
+    --cell-value-text:    #14532d;
+    --cell-label-bg:      #f8fafc;
+    --cell-label-text:    #475569;
+
+    /* Header accent */
+    --header-accent-bg:   #1d4ed8;
+    --header-accent-text: #ffffff;
+
+    /* Timeline */
+    --timeline-active-bg: #2563eb;
+    --timeline-active-text: #ffffff;
+    --timeline-match-bg:  #fef3c7;
+    --timeline-match-text:#92400e;
+    --timeline-idle-bg:   #ffffff;
+    --timeline-idle-text: #475569;
+    --timeline-header-bg: #fefce8;
+    --timeline-header-text:#854d0e;
+
+    /* Shadows */
+    --shadow-sm:  0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.06);
+    --shadow-md:  0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.06);
+    --shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+    --shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
   }
 
+  /* ─── DARK MODE: Premium Clinical Workstation ──────────────────────────────── */
   .dark {
-    --bg-clinical: #0f172a;
-    --surface-clinical: #1e293b;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --accent-clinical: #3b82f6;
-    --border-clinical: #334155;
-    --glass-bg: rgba(30, 41, 59, 0.7);
-    --glass-border: rgba(51, 65, 85, 0.4);
+    /* Backgrounds — Slate/Navy premium, no pure blacks */
+    --bg-primary:         #0b1220;
+    --bg-secondary:       #0f172a;
+    --surface-primary:    #111827;
+    --surface-elevated:   #162033;
+    --surface-overlay:    rgba(17,24,39,0.95);
+
+    /* Legacy aliases (backward compat) */
+    --bg-clinical:        #0b1220;
+    --surface-clinical:   #111827;
+
+    /* Borders — ultra subtle, prevent cards from merging */
+    --border-subtle:      rgba(255,255,255,0.06);
+    --border-muted:       rgba(255,255,255,0.10);
+    --border-strong:      rgba(255,255,255,0.18);
+    --border-clinical:    rgba(255,255,255,0.07);
+
+    /* Text — high legibility, not harsh white */
+    --text-primary:       #f3f4f6;
+    --text-secondary:     #cbd5e1;
+    --text-muted:         #64748b;
+    --text-inverse:       #0f172a;
+
+    /* Accent — cyan-blue clinical, soft */
+    --accent-clinical:    #60a5fa;
+    --accent-subtle:      rgba(96,165,250,0.10);
+    --accent-hover:       rgba(96,165,250,0.18);
+
+    /* Status — dark-adapted, no light-mode greens */
+    --status-success-bg:   rgba(6,78,59,0.25);
+    --status-success-text: #34d399;
+    --status-success-border:rgba(52,211,153,0.20);
+    --status-warning-bg:   rgba(120,53,15,0.25);
+    --status-warning-text: #fbbf24;
+    --status-warning-border:rgba(251,191,36,0.20);
+    --status-danger-bg:    rgba(127,29,29,0.25);
+    --status-danger-text:  #f87171;
+    --status-danger-border:rgba(248,113,113,0.20);
+    --status-info-bg:      rgba(30,58,138,0.25);
+    --status-info-text:    #93c5fd;
+    --status-info-border:  rgba(147,197,253,0.20);
+
+    /* Glassmorphism */
+    --glass-bg:           rgba(17,24,39,0.75);
+    --glass-border:       rgba(255,255,255,0.06);
+
+    /* Grid/Table cells — dark emerald, readable */
+    --cell-value-bg:      rgba(6,78,59,0.20);
+    --cell-value-text:    #6ee7b7;
+    --cell-label-bg:      #111827;
+    --cell-label-text:    #94a3b8;
+
+    /* Header accent — deep blue, legible */
+    --header-accent-bg:   #1e3a5f;
+    --header-accent-text: #93c5fd;
+
+    /* Timeline */
+    --timeline-active-bg: #1d4ed8;
+    --timeline-active-text:#dbeafe;
+    --timeline-match-bg:  rgba(120,53,15,0.22);
+    --timeline-match-text:#fbbf24;
+    --timeline-idle-bg:   #111827;
+    --timeline-idle-text: #94a3b8;
+    --timeline-header-bg: rgba(120,53,15,0.18);
+    --timeline-header-text:#fbbf24;
+
+    /* Shadows — deeper for dark */
+    --shadow-sm:  0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.3);
+    --shadow-md:  0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
+    --shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.3);
+    --shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.3);
   }
 
+  /* ─── BODY BASE ─────────────────────────────────────────────────────────────── */
   body {
-    @apply bg-[var(--bg-clinical)] text-[var(--text-primary)] transition-colors duration-300;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+
+  /* ─── SCROLLBARS TEMATIZADAS ────────────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-muted);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  /* ─── INPUTS & SELECTS TEMATIZADOS ─────────────────────────────────────────── */
+  input, select, textarea {
+    color-scheme: light dark;
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+
+  /* ─── FOCUS RING ACCESIBLE ──────────────────────────────────────────────────── */
+  :focus-visible {
+    outline: 2px solid var(--accent-clinical);
+    outline-offset: 2px;
   }
 }
 
+/* ─── UTILIDADES GLOBALES ───────────────────────────────────────────────────── */
 @layer utilities {
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Surface system */
+  .surface-primary    { background-color: var(--surface-primary); }
+  .surface-elevated   { background-color: var(--surface-elevated); }
+  .border-subtle      { border-color: var(--border-subtle); }
+  .border-muted       { border-color: var(--border-muted); }
+
+  /* Status badges — totalmente tematizados */
+  .badge-success {
+    background-color: var(--status-success-bg);
+    color: var(--status-success-text);
+    border-color: var(--status-success-border);
+  }
+  .badge-warning {
+    background-color: var(--status-warning-bg);
+    color: var(--status-warning-text);
+    border-color: var(--status-warning-border);
+  }
+  .badge-danger {
+    background-color: var(--status-danger-bg);
+    color: var(--status-danger-text);
+    border-color: var(--status-danger-border);
+  }
+  .badge-info {
+    background-color: var(--status-info-bg);
+    color: var(--status-info-text);
+    border-color: var(--status-info-border);
+  }
+
+  /* Glassmorphism standard */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+  }
+
+  /* Clinical header accent */
+  .clinical-header-accent {
+    background-color: var(--header-accent-bg);
+    color: var(--header-accent-text);
+  }
+
+  /* Table cells */
+  .cell-label {
+    background-color: var(--cell-label-bg);
+    color: var(--cell-label-text);
+  }
+  .cell-value {
+    background-color: var(--cell-value-bg);
+    color: var(--cell-value-text);
+  }
 }
 
-/* Hybrid Dark Mode: Keep clinical views and headers in light mode */
-.clinical-surface,
-header,
-.clinical-timeline,
-.clinical-report,
-.clinical-narrative {
-  --bg-clinical: #f8fafc !important;
-  --surface-clinical: #ffffff !important;
-  --text-primary: #0f172a !important;
-  --text-secondary: #475569 !important;
-  --accent-clinical: #2563eb !important;
-  --border-clinical: #e2e8f0 !important;
-  --glass-bg: rgba(255, 255, 255, 0.7) !important;
-  --glass-border: rgba(255, 255, 255, 0.4) !important;
-}
-
-.clinical-surface {
-  background: #ffffff;
-  color: #111827;
-}
-
+/* ─── HIGHLIGHT DE BÚSQUEDA ─────────────────────────────────────────────────── */
 .highlight-match {
-  background: rgba(255, 208, 0, 0.35) !important;
-  border-radius: 4px;
+  background: rgba(250, 204, 21, 0.30) !important;
+  border-radius: 3px;
   padding-inline: 2px;
-  font-weight: 600;
+  font-weight: 700;
   color: inherit !important;
-  box-shadow: 0 0 0 1px rgba(255, 208, 0, 0.2) !important;
+  box-shadow: 0 0 0 1px rgba(250,204,21,0.20) !important;
+}
+.dark .highlight-match {
+  background: rgba(251, 191, 36, 0.22) !important;
+  box-shadow: 0 0 0 1px rgba(251,191,36,0.18) !important;
 }
 
-/* Smooth transitions for theme toggle */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
+/* ─── TRANSICIONES GLOBALES SUAVES ─────────────────────────────────────────── */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+  transition-duration: 180ms;
+}
+
+/* Excepciones: no animar transforms ni layouts por rendimiento */
+.no-transition, [data-no-transition] {
+  transition: none !important;
 }

@@ -189,12 +189,12 @@ export default function ManualMappingWizard({
 
   const getConfidenceBadge = (header: string, canonicalId: string) => {
     if (canonicalId === 'ignore') {
-      return <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded">Ignorado</span>;
+      return <span className="bg-[var(--surface-elevated)] text-[var(--text-muted)] text-[10px] font-bold px-2 py-0.5 rounded">Ignorado</span>;
     }
     if (canonicalId === 'custom') {
       const category = DynamicCategoryInference.inferSection(header).split('-')[1] || "Otros";
       return (
-        <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded" title={`Autocategorizado en ${category}`}>
+        <span className="bg-[var(--status-info-bg)] text-[var(--status-info-text)] text-[10px] font-bold px-2 py-0.5 rounded" title={`Autocategorizado en ${category}`}>
           Personalizado ({category})
         </span>
       );
@@ -205,12 +205,12 @@ export default function ManualMappingWizard({
 
     const score = MappingConfidenceEngine.calculateScore(header, canonical);
     if (score >= 0.8) {
-      return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Confianza Alta ({(score*100).toFixed(0)}%)</span>;
+      return <span className="bg-[var(--status-success-bg)] text-[var(--status-success-text)] text-[10px] font-bold px-2 py-0.5 rounded">Confianza Alta ({(score*100).toFixed(0)}%)</span>;
     }
     if (score >= 0.5) {
-      return <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">Confianza Media ({(score*100).toFixed(0)}%)</span>;
+      return <span className="bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] text-[10px] font-bold px-2 py-0.5 rounded">Confianza Media ({(score*100).toFixed(0)}%)</span>;
     }
-    return <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">Confianza Baja ({(score*100).toFixed(0)}%)</span>;
+    return <span className="bg-[var(--status-danger-bg)] text-[var(--status-danger-text)] text-[10px] font-bold px-2 py-0.5 rounded">Confianza Baja ({(score*100).toFixed(0)}%)</span>;
   };
 
   const isStructuralMapped = nhcHeader && idTomaHeader && ordenTomaHeader && fechaTomaHeader;
@@ -231,7 +231,7 @@ export default function ManualMappingWizard({
         <div className="flex gap-3">
           <button 
             onClick={onCancel}
-            className="px-4 py-2 border border-[var(--border-clinical)] hover:bg-red-50 hover:text-red-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+            className="px-4 py-2 border border-[var(--border-clinical)] hover:bg-red-500/10 hover:text-red-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
           >
             Cancelar
           </button>
@@ -389,7 +389,7 @@ export default function ManualMappingWizard({
               <div key={header} className="p-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-[var(--bg-clinical)]/20 transition-all">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-slate-500 font-mono">#{String(index+1).padStart(2, '0')}</span>
+                    <span className="text-xs font-black text-[var(--text-muted)] font-mono">#{String(index+1).padStart(2, '0')}</span>
                     <span className="text-sm font-bold truncate text-[var(--text-primary)]" title={header}>{header}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">

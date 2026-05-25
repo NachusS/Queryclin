@@ -45,9 +45,9 @@ export function AdminDashboard({ onSelectSchema }: { onSelectSchema: (id: string
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'published': return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-1 rounded uppercase">Publicado</span>;
-      case 'draft': return <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-1 rounded uppercase">Borrador</span>;
-      default: return <span className="bg-slate-100 text-slate-800 text-[10px] font-black px-2 py-1 rounded uppercase">{status}</span>;
+      case 'published': return <span className="bg-[var(--status-success-bg)] text-[var(--status-success-text)] border border-[var(--status-success-border)] text-[10px] font-black px-2 py-1 rounded uppercase">Publicado</span>;
+      case 'draft': return <span className="bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border border-[var(--status-warning-border)] text-[10px] font-black px-2 py-1 rounded uppercase">Borrador</span>;
+      default: return <span className="bg-[var(--surface-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-black px-2 py-1 rounded uppercase">{status}</span>;
     }
   };
 
@@ -56,7 +56,7 @@ export function AdminDashboard({ onSelectSchema }: { onSelectSchema: (id: string
       <div className="p-8">
         <button 
           onClick={() => setView('list')}
-          className="mb-8 text-slate-500 hover:text-slate-800 font-bold text-sm uppercase tracking-wider flex items-center gap-2"
+          className="mb-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold text-sm uppercase tracking-wider flex items-center gap-2"
         >
           &larr; Volver al Dashboard
         </button>
@@ -70,25 +70,25 @@ export function AdminDashboard({ onSelectSchema }: { onSelectSchema: (id: string
       <div className="max-w-4xl mx-auto p-8 font-sans">
         <button 
           onClick={() => setView('list')}
-          className="mb-8 text-slate-500 hover:text-slate-800 font-bold text-sm uppercase tracking-wider flex items-center gap-2"
+          className="mb-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold text-sm uppercase tracking-wider flex items-center gap-2"
         >
           &larr; Volver al Dashboard
         </button>
-        <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Elegir Plantilla Base</h2>
-        <p className="text-slate-500 mb-8 font-medium">Clona la estructura de un formulario oficial para personalizarlo.</p>
+        <h2 className="text-2xl font-black text-[var(--text-primary)] mb-2 uppercase tracking-tight">Elegir Plantilla Base</h2>
+        <p className="text-[var(--text-secondary)] mb-8 font-medium">Clona la estructura de un formulario oficial para personalizarlo.</p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {TemplateGenerator.getAvailableTemplates().map(tpl => (
             <button 
               key={tpl.id}
               onClick={() => handleCreateFromTemplate(tpl.id)}
-              className="bg-white border-2 border-slate-200 hover:border-[#0056b3] rounded-2xl p-8 text-left transition-all hover:shadow-xl group"
+              className="bg-[var(--surface-clinical)] border-2 border-[var(--border-clinical)] hover:border-[var(--accent-clinical)] rounded-2xl p-8 text-left transition-all hover:shadow-xl group"
             >
-              <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 mb-6 group-hover:bg-blue-50 group-hover:text-[#0056b3] transition-colors">
+              <div className="w-12 h-12 bg-[var(--bg-clinical)] rounded-xl flex items-center justify-center text-[var(--text-secondary)] mb-6 group-hover:bg-[var(--accent-clinical)]/10 group-hover:text-[var(--accent-clinical)] transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V7m-4 4h1m-5 4h5" /></svg>
               </div>
-              <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">{tpl.name}</h3>
-              <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-widest">Estructura Oficial</p>
+              <h3 className="font-black text-[var(--text-primary)] text-lg uppercase tracking-tight">{tpl.name}</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-2 font-bold uppercase tracking-widest opacity-60">Estructura Oficial</p>
             </button>
           ))}
         </div>
@@ -101,25 +101,25 @@ export function AdminDashboard({ onSelectSchema }: { onSelectSchema: (id: string
       <div className="max-w-4xl mx-auto p-8 font-sans">
         <button 
           onClick={() => setView('list')}
-          className="mb-8 text-slate-500 hover:text-slate-800 font-bold text-sm uppercase tracking-wider flex items-center gap-2"
+          className="mb-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold text-sm uppercase tracking-wider flex items-center gap-2"
         >
           &larr; Volver al Dashboard
         </button>
-        <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Biblioteca de Recursos</h2>
-        <p className="text-slate-500 mb-8 font-medium">Crea un formulario nuevo usando las cabeceras canónicas (sin diseño previo).</p>
+        <h2 className="text-2xl font-black text-[var(--text-primary)] mb-2 uppercase tracking-tight">Biblioteca de Recursos</h2>
+        <p className="text-[var(--text-secondary)] mb-8 font-medium">Crea un formulario nuevo usando las cabeceras canónicas (sin diseño previo).</p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {(Object.keys(CLINICAL_RESOURCES) as Array<keyof typeof CLINICAL_RESOURCES>).map(resKey => (
             <button 
               key={resKey}
               onClick={() => handleCreateFromResource(resKey)}
-              className="bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl p-8 text-left transition-all hover:shadow-xl group"
+              className="bg-[var(--surface-clinical)] border-2 border-emerald-100/20 dark:border-emerald-500/20 hover:border-emerald-500 rounded-2xl p-8 text-left transition-all hover:shadow-xl group"
             >
-              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-6 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+              <div className="w-12 h-12 bg-[var(--status-success-bg)] rounded-xl flex items-center justify-center text-[var(--status-success-text)] mb-6 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               </div>
-              <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Base {resKey}</h3>
-              <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-widest">Todos los campos disponibles</p>
+              <h3 className="font-black text-[var(--text-primary)] text-lg uppercase tracking-tight">Base {resKey}</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-2 font-bold uppercase tracking-widest opacity-60">Todos los campos disponibles</p>
             </button>
           ))}
         </div>
@@ -180,7 +180,7 @@ export function AdminDashboard({ onSelectSchema }: { onSelectSchema: (id: string
                 {getStatusBadge(schema.status)}
                 <button 
                   onClick={(e) => handleDeleteSchema(e, schema.id)}
-                  className="p-2 hover:bg-red-50 text-[var(--text-secondary)] hover:text-red-600 rounded-xl transition-all"
+                  className="p-2 hover:bg-red-500/10 text-[var(--text-secondary)] hover:text-red-600 rounded-xl transition-all"
                   title="Eliminar Formulario"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -202,9 +202,9 @@ export function AdminDashboard({ onSelectSchema }: { onSelectSchema: (id: string
         ))}
 
         {schemas.length === 0 && (
-          <div className="col-span-full text-center py-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-            <h3 className="text-slate-500 font-bold text-lg mb-2">No hay formularios clínicos</h3>
-            <p className="text-slate-400 mb-6">Importa un archivo XLSX/CSV para generar el primer esquema automáticamente.</p>
+          <div className="col-span-full text-center py-20 bg-[var(--bg-clinical)] rounded-xl border-2 border-dashed border-[var(--border-clinical)]">
+            <h3 className="text-[var(--text-secondary)] font-bold text-lg mb-2">No hay formularios clínicos</h3>
+            <p className="text-[var(--text-secondary)]/70 mb-6">Importa un archivo XLSX/CSV para generar el primer esquema automáticamente.</p>
             <button 
               onClick={() => setView('import')}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-md shadow-sm transition-colors text-sm uppercase tracking-wider"

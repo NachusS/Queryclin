@@ -1,3 +1,12 @@
+## [7.2.2] - V7.2.2-STABLE - 2026-05-25
+### Añadido
+- **Favicon e Identidad Visual PWA**: Incorporación de favicon oficial minimalista (`favicon.ico`, `apple-touch-icon.png`, y assets PNG) y registro en `manifest.json` y metadatos de `index.html`.
+- **Sincronización del Modo Oscuro**: Tematización unificada en modo oscuro del timeline lateral, demografía, paneles de cabecera y visualización clínica mediante variables CSS semánticas en lugar de valores fijos en modo claro.
+- **Scrollbars Tematizadas**: Barras de desplazamiento adaptativas que respetan los fondos del tema activo.
+
+### Corregido
+- **Remoción de Estilos Hardcoded**: Limpieza y eliminación de las clases CSS estáticas `.clinical-surface` y clases de color duro (`bg-white`, `bg-slate-50`, `text-slate-900`) en componentes del visor clínico (`HCEView.tsx`, `GlobalHeader.tsx`) y del Admin Studio (`AdminRoot.tsx`, `FormDesigner.tsx`, `AdminDashboard.tsx`, `VersionSelector.tsx`, `ImportWizard.tsx`).
+
 ## [7.2.1] - V7.2.1-STABLE - 2026-05-25
 ### Añadido
 - **Consolidación de Release**: Integración final y endurecimiento de la rama `feature/admin-studio` (Admin Studio, Búsqueda de Frases Exactas y Sincronización de Versiones) hacia `main`.

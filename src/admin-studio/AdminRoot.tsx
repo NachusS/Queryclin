@@ -40,7 +40,7 @@ export function AdminRoot({ onExit, onGoHome, version, buildDate }: AdminRootPro
   return (
     <div className="absolute inset-0 z-[100] bg-[var(--bg-clinical)] overflow-hidden flex flex-col">
       {/* Cabecera Unificada de Admin Studio */}
-      <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex justify-between items-center px-6 relative z-[110] shadow-sm backdrop-blur-md bg-opacity-95 shrink-0 clinical-surface">
+      <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex justify-between items-center px-6 relative z-[110] shadow-sm backdrop-blur-md bg-opacity-95 shrink-0">
         <div className="flex items-center gap-6">
           <div onClick={onGoHome} className="flex items-center gap-3 cursor-pointer group">
             <div className="w-10 h-10 bg-[var(--accent-clinical)] rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">

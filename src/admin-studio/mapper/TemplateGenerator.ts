@@ -17,6 +17,19 @@ export class TemplateGenerator {
 
     const sections: ClinicalSection[] = [];
     const sectionMap: Record<string, ClinicalSection> = {};
+    const usedIds = new Set<string>();
+
+    const getUniqueId = (source: string): string => {
+      const base = `fld-${source.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      let finalId = base;
+      let counter = 1;
+      while (usedIds.has(finalId)) {
+        finalId = `${base}_${counter}`;
+        counter++;
+      }
+      usedIds.add(finalId);
+      return finalId;
+    };
 
     // Mapear visualCategories a Secciones y Grupos
     Object.entries(mapping.visualCategories).forEach(([catKey, fields], index) => {
@@ -42,11 +55,23 @@ export class TemplateGenerator {
         title: groupTitle,
         layout: groupTitle.includes('CONSTANTES') || groupTitle.includes('ANALITICA') ? 'grid' : 'stack',
         columns: 4,
-        fields: fields.map((f, fIdx) => this.createField(f, fIdx))
+        fields: fields.map((f) => this.createField(f, 0, undefined, getUniqueId(f)))
       };
 
       section.groups.push(group);
     });
+
+    // Filtrar cabeceras para incluir solo demografía/keys
+    const headerFields = Object.entries(mapping.headerAliases || {})
+      .filter(([key]) => {
+        const isDemographic = Object.values(mapping.demographics || {}).includes(key);
+        const isStructural = Object.values(mapping.keys || {}).includes(key);
+        return isDemographic || isStructural;
+      })
+      .map(([key, aliases]) => {
+        const sourceField = aliases[0] || key;
+        return this.createField(sourceField, 0, key, getUniqueId(sourceField));
+      });
 
     return {
       id: `schema-tpl-${formId}-${Date.now()}`,
@@ -58,7 +83,7 @@ export class TemplateGenerator {
       header: [{
         id: 'hdr-1',
         layout: 'grid',
-        fields: Object.entries(mapping.headerAliases || {}).map(([key, aliases]) => this.createField(aliases[0] || key, 0, key))
+        fields: headerFields
       }],
       sidebar: [],
       sections: sections.sort((a, b) => a.order - b.order),
@@ -71,10 +96,23 @@ export class TemplateGenerator {
    * Todos los campos se inician como 'unassigned' en la paleta.
    */
   static generateFromRawHeaders(name: string, rawHeaders: string): ClinicalFormSchema {
+    const usedIds = new Set<string>();
+    const getUniqueId = (source: string): string => {
+      const base = `fld-${source.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      let finalId = base;
+      let counter = 1;
+      while (usedIds.has(finalId)) {
+        finalId = `${base}_${counter}`;
+        counter++;
+      }
+      usedIds.add(finalId);
+      return finalId;
+    };
+
     const fields = rawHeaders.split('|')
       .map(h => h.trim())
       .filter(h => h.length > 0)
-      .map((h, idx) => this.createField(h, idx));
+      .map((h) => this.createField(h, 0, undefined, getUniqueId(h)));
 
     // Separar campos técnicos de cabecera (NHC, Id_Toma, etc)
     const technicalKeys = ['NHC', 'N.H.C', 'ID_TOMA', 'ORDEN_TOMA', 'FECHA_TOMA', 'EC_FECHA_TOMA', 'CIPA'];
@@ -105,14 +143,14 @@ export class TemplateGenerator {
     };
   }
 
-  private static createField(source: string, index: number, overrideLabel?: string): ClinicalField {
+  private static createField(source: string, index: number, overrideLabel?: string, overrideId?: string): ClinicalField {
     const isNarrative = source.length > 40 || 
                       source.toUpperCase().includes('ANAMNESIS') || 
                       source.toUpperCase().includes('OBSERVACIONES') ||
                       source.toUpperCase().includes('EXPLORACION');
 
     return {
-      id: `fld-${source.toLowerCase().replace(/[^a-z0-9]/g, '_')}-${index}`,
+      id: overrideId || `fld-${source.toLowerCase().replace(/[^a-z0-9]/g, '_')}-${index}`,
       sourceField: source,
       label: overrideLabel || source,
       type: isNarrative ? 'textarea' : 'text',

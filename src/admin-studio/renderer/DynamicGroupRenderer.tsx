@@ -47,24 +47,24 @@ export const DynamicGroupRenderer = React.memo<DynamicGroupRendererProps>(({ gro
       <div className="my-4 select-none w-full">
         {group.title && (
           <div className="mb-2">
-            <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 w-full shadow-sm">
+            <div className="bg-[var(--header-accent-bg)] text-[var(--header-accent-text)] px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-[var(--border-muted)] w-full shadow-sm">
               {group.title}:
             </div>
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
           {colArrays.map((colFields, colIdx) => (
-            <div key={colIdx} className={`border border-slate-300 shadow-sm overflow-hidden flex flex-col rounded-sm bg-white ${colFields.length === 0 ? 'border-transparent shadow-none' : ''}`}>
+            <div key={colIdx} className={`border border-[var(--border-muted)] shadow-[var(--shadow-sm)] overflow-hidden flex flex-col rounded-sm bg-[var(--surface-primary)] ${colFields.length === 0 ? 'border-transparent shadow-none' : ''}`}>
               {colFields.map(f => {
                 const val = data[f.sourceField];
                 const displayVal = Array.isArray(val) ? val.join(', ') : (String(val || '').trim() || '--');
                 
                 return (
-                  <div key={f.id} className="flex border-b border-slate-200 last:border-b-0">
-                    <div className="bg-white px-3 py-1.5 text-[10px] font-bold border-r border-slate-200 flex items-center flex-1 text-slate-700 uppercase truncate" title={f.label}>
+                  <div key={f.id} className="flex border-b border-[var(--border-subtle)] last:border-b-0">
+                    <div className="bg-[var(--cell-label-bg)] px-3 py-1.5 text-[10px] font-bold border-r border-[var(--border-subtle)] flex items-center flex-1 text-[var(--cell-label-text)] uppercase truncate" title={f.label}>
                       {f.label}:
                     </div>
-                    <div className="bg-[#F1F8E9] px-3 py-1.5 text-[11px] font-medium text-slate-800 flex items-center justify-center w-[85px] text-center tabular-nums">
+                    <div className="bg-[var(--cell-value-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--cell-value-text)] flex items-center justify-center w-[85px] text-center tabular-nums">
                       {searchQuery ? <HighlightedText text={displayVal} query={searchQuery} /> : displayVal}
                     </div>
                   </div>
@@ -82,7 +82,7 @@ export const DynamicGroupRenderer = React.memo<DynamicGroupRendererProps>(({ gro
     <div className="flex flex-col gap-4">
       {group.title && group.title.toUpperCase() !== 'ANTECEDENTES PERSONALES' && (
         <div className="mb-2">
-          <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 w-full shadow-sm">
+          <div className="bg-[var(--header-accent-bg)] text-[var(--header-accent-text)] px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-[var(--border-muted)] w-full shadow-sm">
             {group.title}:
           </div>
         </div>

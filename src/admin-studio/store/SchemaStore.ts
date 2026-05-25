@@ -1,5 +1,88 @@
 import { db } from '../../storage/indexedDB';
-import { FormSchema } from '../domain/schema';
+import { FormSchema, Field } from '../domain/schema';
+
+function sanitizeSchema(schema: FormSchema): FormSchema {
+  const usedIds = new Set<string>();
+
+  const makeUnique = (id: string, prefix: string): string => {
+    if (!id) {
+      id = `${prefix}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+    let finalId = id;
+    let counter = 1;
+    while (usedIds.has(finalId)) {
+      finalId = `${id}_dup${counter}`;
+      counter++;
+    }
+    usedIds.add(finalId);
+    return finalId;
+  };
+
+  const sanitizeFields = (fields: Field[], prefix: string): Field[] => {
+    if (!fields) return [];
+    return fields.map(f => {
+      if (!f) return f;
+      const sanitized = { ...f };
+      sanitized.id = makeUnique(sanitized.id, prefix);
+      if (sanitized.children) {
+        sanitized.children = sanitizeFields(sanitized.children, prefix);
+      }
+      return sanitized;
+    });
+  };
+
+  const newSchema = { ...schema };
+
+  // Sanitize headers
+  if (newSchema.header) {
+    newSchema.header = newSchema.header.map(h => {
+      const sanitized = { ...h };
+      sanitized.id = makeUnique(sanitized.id, 'hdr');
+      if (sanitized.fields) {
+        sanitized.fields = sanitizeFields(sanitized.fields, 'fld');
+      }
+      return sanitized;
+    });
+  }
+
+  // Sanitize sidebar
+  if (newSchema.sidebar) {
+    newSchema.sidebar = newSchema.sidebar.map(s => {
+      const sanitized = { ...s };
+      sanitized.id = makeUnique(sanitized.id, 'sb');
+      if (sanitized.fields) {
+        sanitized.fields = sanitizeFields(sanitized.fields, 'fld');
+      }
+      return sanitized;
+    });
+  }
+
+  // Sanitize sections
+  if (newSchema.sections) {
+    newSchema.sections = newSchema.sections.map(s => {
+      const sanitizedSec = { ...s };
+      sanitizedSec.id = makeUnique(sanitizedSec.id, 'sec');
+      if (sanitizedSec.groups) {
+        sanitizedSec.groups = sanitizedSec.groups.map(g => {
+          const sanitizedGrp = { ...g };
+          sanitizedGrp.id = makeUnique(sanitizedGrp.id, 'grp');
+          if (sanitizedGrp.fields) {
+            sanitizedGrp.fields = sanitizeFields(sanitizedGrp.fields, 'fld');
+          }
+          return sanitizedGrp;
+        });
+      }
+      return sanitizedSec;
+    });
+  }
+
+  // Sanitize unassignedFields
+  if (newSchema.unassignedFields) {
+    newSchema.unassignedFields = sanitizeFields(newSchema.unassignedFields, 'fld');
+  }
+
+  return newSchema;
+}
 
 export class SchemaStore {
   /**
@@ -27,22 +110,27 @@ export class SchemaStore {
    * Si no se especifica versión, devuelve la más reciente.
    */
   async getSchema(id: string, version?: string): Promise<FormSchema | null> {
+    let schema: FormSchema | null = null;
     if (version) {
       const key = this.getVersionedKey(id, version);
       const result = await db.getFromStore(db.stores.clinical_schemas, key);
-      return result as FormSchema | null;
+      schema = result as FormSchema | null;
+    } else {
+      // Si no hay versión, buscamos la más reciente
+      const all = await this.getAllVersionsOfSchema(id);
+      if (all.length === 0) {
+        // Retrocompatibilidad: buscar sin prefijo de versión
+        const result = await db.getFromStore(db.stores.clinical_schemas, id);
+        schema = result as FormSchema | null;
+      } else {
+        schema = all.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      }
     }
 
-    // Si no hay versión, buscamos la más reciente
-    const all = await this.getAllVersionsOfSchema(id);
-    if (all.length === 0) {
-      // Retrocompatibilidad: buscar sin prefijo de versión
-      const result = await db.getFromStore(db.stores.clinical_schemas, id);
-      return result as FormSchema | null;
+    if (schema) {
+      schema = sanitizeSchema(schema);
     }
-    
-    // Ordenar por versión (asumiendo numéricas o ordenables) o por updatedAt
-    return all.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    return schema;
   }
 
   /**

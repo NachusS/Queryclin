@@ -89,7 +89,7 @@ function DroppableGroup({ group, children, isSelected, onClick, onDelete }: { gr
           <span className="text-[9px] font-bold text-[var(--text-secondary)] opacity-40 uppercase tracking-widest bg-[var(--bg-clinical)] px-2 py-0.5 rounded border border-[var(--border-clinical)]">{group.layout} {group.layout === 'grid' && `(${group.columns || 2} col)`}</span>
           <button 
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-1.5 text-red-500/40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+            className="p-1.5 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
           >
             <Trash2 size={12} />
           </button>
@@ -347,7 +347,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
                    className="text-lg font-black text-[var(--text-primary)] tracking-tight uppercase leading-none bg-transparent border-b border-transparent hover:border-[var(--border-clinical)] focus:border-[var(--accent-clinical)] focus:outline-none px-1 transition-colors"
                    title="Haz clic para editar el nombre del formulario"
                  />
-                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${schema.status === 'published' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'} uppercase tracking-widest`}>
+                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${schema.status === 'published' ? 'bg-[var(--status-success-bg)] text-[var(--status-success-text)] border-[var(--status-success-border)]' : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border-[var(--status-warning-border)]'} uppercase tracking-widest`}>
                     {schema.status}
                  </span>
               </div>
@@ -361,7 +361,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
           <div className="flex items-center gap-3">
             <button 
               onClick={handleResetSchema}
-              className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+              className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
             >
               Resetear Lienzo
             </button>
@@ -421,7 +421,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
           </DroppablePalette>
 
           {/* Clinical Canvas */}
-          <main className="flex-1 overflow-y-auto bg-[var(--bg-clinical)] p-12 hide-scrollbar clinical-surface">
+          <main className="flex-1 overflow-y-auto bg-[var(--bg-clinical)] p-12 hide-scrollbar">
             <div className="max-w-4xl mx-auto space-y-10 pb-20">
               
               {schema.sections.map(section => (
@@ -439,7 +439,7 @@ export function FormDesigner({ schemaId, onBack }: FormDesignerProps) {
                     </div>
                     <button 
                         onClick={(e) => { e.stopPropagation(); handleDeleteSection(section.id); }}
-                        className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover/sec:opacity-100"
+                        className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover/sec:opacity-100"
                         title="Eliminar Sección"
                     >
                         <Trash2 size={16} />

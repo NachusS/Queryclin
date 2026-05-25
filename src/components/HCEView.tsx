@@ -146,12 +146,12 @@ const ClinicalField = memo(function ClinicalField({ label, value, query, highlig
       {isMultivalue ? (
         <div className="mt-1 space-y-1.5">
           {/* Lista de hallazgos abierta por defecto sin contador */}
-          <div className="bg-slate-50/50 border-2 border-slate-100 rounded-2xl overflow-hidden">
-            <ul className="flex flex-col divide-y divide-slate-100">
+          <div className="bg-[var(--bg-clinical)]/50 border-2 border-[var(--border-clinical)] rounded-2xl overflow-hidden">
+            <ul className="flex flex-col divide-y divide-[var(--border-clinical)]">
               {value.map((item, idx) => (
-                <li key={idx} className="px-5 py-2.5 flex items-start gap-3 hover:bg-white transition-colors">
+                <li key={idx} className="px-5 py-2.5 flex items-start gap-3 hover:bg-[var(--surface-clinical)] transition-colors">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-clinical)] mt-2 shrink-0" />
-                  <span className="text-[15px] font-bold text-slate-800 leading-tight">
+                  <span className="text-[15px] font-bold text-[var(--text-primary)] leading-tight">
                     {shouldHighlight ? <HighlightedText text={item} query={query} /> : item}
                   </span>
                 </li>
@@ -168,11 +168,11 @@ const ClinicalField = memo(function ClinicalField({ label, value, query, highlig
           {displayValue}
         </span>
       ) : isLong ? (
-        <p className="text-[15px] text-slate-900 leading-[1.75] whitespace-pre-wrap font-bold">
+        <p className="text-[15px] text-[var(--text-primary)] leading-[1.75] whitespace-pre-wrap font-bold">
           {shouldHighlight ? <HighlightedText text={formattedValue} query={query} /> : formattedValue}
         </p>
       ) : (
-        <span className="text-[16px] text-slate-900 font-black leading-snug whitespace-pre-wrap">
+        <span className="text-[16px] text-[var(--text-primary)] font-black leading-snug whitespace-pre-wrap">
           {shouldHighlight ? <HighlightedText text={formattedValue} query={query} /> : formattedValue}
         </span>
       )}
@@ -195,22 +195,22 @@ const ClinicalGrid = memo(function ClinicalGrid({ title, fields, query, shouldHi
   return (
     <div className="my-4 select-none w-full">
       {title && (
-        <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 inline-block mb-[1px] shadow-sm">
+        <div className="bg-[var(--header-accent-bg)] text-[var(--header-accent-text)] px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-[var(--border-muted)] inline-block mb-[1px] shadow-sm">
           {title}:
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
         {columns.map((colFields, colIdx) => (
-          <div key={colIdx} className={`border border-slate-300 shadow-sm overflow-hidden flex flex-col rounded-sm bg-white ${colFields.length === 0 ? 'border-transparent shadow-none' : ''}`}>
+          <div key={colIdx} className={`border border-[var(--border-clinical)] shadow-sm overflow-hidden flex flex-col rounded-sm bg-[var(--surface-clinical)] ${colFields.length === 0 ? 'border-transparent shadow-none' : ''}`}>
             {colFields.map((f, fIdx) => {
               const val = Array.isArray(f.value) ? f.value.join(', ') : (String(f.value).trim() || '--');
               if (!showEmpty && (val === '--' || val === '')) return null;
               return (
-                <div key={fIdx} className="flex border-b border-slate-200 last:border-b-0">
-                  <div className="bg-white px-3 py-1.5 text-[10px] font-bold border-r border-slate-200 flex items-center flex-1 text-slate-700 uppercase truncate" title={f.key}>
+                <div key={fIdx} className="flex border-b border-[var(--border-clinical)] last:border-b-0">
+                  <div className="bg-[var(--surface-clinical)] px-3 py-1.5 text-[10px] font-bold border-r border-[var(--border-clinical)] flex items-center flex-1 text-[var(--text-secondary)] uppercase truncate" title={f.key}>
                     {f.key}:
                   </div>
-                  <div className="bg-[#F1F8E9] px-3 py-1.5 text-[11px] font-medium text-slate-800 flex items-center justify-center w-[85px] text-center tabular-nums">
+                  <div className="bg-[var(--cell-value-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--cell-value-text)] flex items-center justify-center w-[85px] text-center tabular-nums">
                     {shouldHighlight ? <HighlightedText text={val} query={query} /> : val}
                   </div>
                 </div>
@@ -244,11 +244,11 @@ const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId,
     const value = getV(keys);
 
     return (
-      <div className="flex border-b border-slate-200 last:border-b-0">
-        <div className={`bg-white px-3 py-1.5 text-[10px] font-bold border-r border-slate-200 flex items-center flex-1 text-slate-700 uppercase`} style={{ minWidth: minW }}>
+      <div className="flex border-b border-[var(--border-clinical)] last:border-b-0">
+        <div className={`bg-[var(--surface-clinical)] px-3 py-1.5 text-[10px] font-bold border-r border-[var(--border-clinical)] flex items-center flex-1 text-[var(--text-secondary)] uppercase`} style={{ minWidth: minW }}>
           {label}
         </div>
-        <div className={`bg-[#F1F8E9] px-3 py-1.5 text-[11px] font-medium text-slate-800 flex items-center justify-center text-center tabular-nums`} style={{ minWidth: valW }}>
+        <div className={`bg-[var(--cell-value-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--cell-value-text)] flex items-center justify-center text-center tabular-nums`} style={{ minWidth: valW }}>
           {shouldHighlight ? <HighlightedText text={value} query={query} /> : value}
         </div>
       </div>
@@ -261,12 +261,12 @@ const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId,
 
   return (
     <div className="my-4 select-none w-full">
-      <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 inline-block mb-[1px] shadow-sm">
+      <div className="bg-[var(--header-accent-bg)] text-[var(--header-accent-text)] px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-[var(--border-muted)] inline-block mb-[1px] shadow-sm">
         Constantes {displayFormId}:
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
         {/* Columna 1 */}
-        <div className="border border-slate-300 shadow-sm overflow-hidden flex flex-col rounded-sm bg-white">
+        <div className="border border-[var(--border-clinical)] shadow-sm overflow-hidden flex flex-col rounded-sm bg-[var(--surface-clinical)]">
           <Field label="IMC:" keys={['IMC:', 'IMC']} />
           <Field label="Valoración IMC:" keys={['Valoración IMC', 'Valoracion IMC', 'Valoración IMC:']} />
           <Field label="Diabetes Mellitus:" keys={['Diabetes Mellitus', 'Diabetes mellitus', 'Diabetes Mellitus:', 'Diabetes Gestacional']} />
@@ -276,7 +276,7 @@ const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId,
           <Field label="Hábitos Tóxicos:" keys={['Hábitos Tóxicos', 'Habitos Toxicos', 'Hábitos Tóxicos:', 'Habitos tóxicos', 'Hábitos tóxicos gestación']} />
         </div>
         {/* Columna 2 */}
-        <div className="border border-slate-300 shadow-sm overflow-hidden flex flex-col rounded-sm bg-white">
+        <div className="border border-[var(--border-clinical)] shadow-sm overflow-hidden flex flex-col rounded-sm bg-[var(--surface-clinical)]">
           <Field label="Peso:" keys={['Peso:', 'Peso']} />
           <Field label="Sup. Corporal:" keys={['Superficie Corporal', 'Superficie corporal', 'Superficie Corporal:', 'Sup. Corporal:', 'Superficie Corp:']} />
           <Field label="FC:" keys={['FC', 'Frecuencia Cardíaca', 'FC:']} />
@@ -287,7 +287,7 @@ const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId,
           <Field label="Hábito Tabáquico:" keys={['Hábito Tabáquico', 'Habito Tabaquico', 'Hábito Tabáquico:', 'Habito Tabáquico', 'Fumadora durante el embarazo?']} />
         </div>
         {/* Columna 3 */}
-        <div className="border border-slate-300 shadow-sm overflow-hidden flex flex-col rounded-sm bg-white">
+        <div className="border border-[var(--border-clinical)] shadow-sm overflow-hidden flex flex-col rounded-sm bg-[var(--surface-clinical)]">
           <Field label="Grupo Sanguíneo:" keys={['Grupo Sanguíneo', 'Grupo sanguineo y RH', 'Grupo Sanguíneo:', 'G. Sanguíneo', 'Grupo Sanguíneo:', 'Grupo y RH:', 'Grupo y RH']} />
           <Field label="Transfusiones:" keys={['Transfusiones', 'Transfusiones:', 'Antecedentes Transfusionales', 'Motivos Transfusiones']} />
           <Field label="Perímetro abd.:" keys={['Perímetro abdominal', 'Perimetro abdominal', 'Perímetro abdominal:']} />
@@ -298,7 +298,7 @@ const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId,
           <Field label="Aumento Peso:" keys={['Aumento de peso desde el comienzo del embarazo', 'Peso 1ª Visita']} />
         </div>
         {/* Columna 4 */}
-        <div className="border border-slate-300 shadow-sm overflow-hidden flex flex-col rounded-sm bg-white">
+        <div className="border border-[var(--border-clinical)] shadow-sm overflow-hidden flex flex-col rounded-sm bg-[var(--surface-clinical)]">
           <Field label="Talla:" keys={['Talla:', 'Talla']} />
           <Field label="Tmp:" keys={['Tmp', 'T', 'Temperatura', 'Tmp:', 'Temperatura:', 'T:']} />
           <Field label="PAD:" keys={['PAD', 'PAD:']} />
@@ -315,9 +315,8 @@ const ClinicalConstants = memo(function ClinicalConstants({ data, query, formId,
 const SectionHeader = memo(function SectionHeader({ label }: { label: string }) {
   return (
     <div className="w-full mb-6">
-      <div className="bg-[#1e293b] text-white px-5 py-2 text-[13px] font-black uppercase tracking-[0.15em] border-l-4 border-emerald-500 shadow-md flex items-center justify-between">
+      <div className="bg-slate-800 dark:bg-slate-900 text-white px-5 py-3 text-[13px] font-black uppercase tracking-[0.15em] border-l-4 border-l-emerald-500 shadow-sm flex items-center w-full">
         <span>{label}</span>
-        <div className="h-px flex-1 bg-emerald-500/20 ml-6 opacity-30" />
       </div>
     </div>
   );
@@ -326,9 +325,9 @@ const SectionHeader = memo(function SectionHeader({ label }: { label: string }) 
 // ─── Campo de Cabecera Compacta (HCE-ALG) ───────────────────────────────────
 const HeaderField = memo(function HeaderField({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-md border ${highlight ? 'bg-red-500/10 border-red-500/20 text-red-600' : 'bg-white border-slate-200'}`}>
-      <span className="text-[10px] font-black uppercase text-slate-400">{label}:</span>
-      <span className={`text-[12px] font-bold ${highlight ? 'text-red-700' : 'text-slate-700'}`}>{value || '--'}</span>
+    <div className={`flex items-center gap-2 px-3 py-1 rounded-md border ${highlight ? 'bg-red-500/10 border-red-500/20 text-red-600' : 'bg-[var(--surface-clinical)] border-[var(--border-clinical)]'}`}>
+      <span className="text-[10px] font-black uppercase text-[var(--text-secondary)] opacity-60">{label}:</span>
+      <span className={`text-[12px] font-bold ${highlight ? 'text-red-500 dark:text-red-400' : 'text-[var(--text-primary)]'}`}>{value || '--'}</span>
     </div>
   );
 });
@@ -360,10 +359,10 @@ const TomaTimeline = memo(function TomaTimeline({
     return matchedRegistros?.some(m => String(m.idToma) === String(idToma)) || false;
   };
   return (
-    <div className="flex flex-col gap-0 sticky top-[180px] max-h-[75vh] overflow-y-auto hide-scrollbar rounded-xl border border-slate-200 shadow-sm bg-white">
+    <div className="flex flex-col gap-0 sticky top-[180px] max-h-[75vh] overflow-y-auto hide-scrollbar rounded-xl border border-[var(--border-clinical)] shadow-sm bg-[var(--surface-clinical)]">
       {isHCEALG ? (
-        <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Navegación / Tomas</span>
+        <div className="bg-[var(--bg-clinical)] px-3 py-2 border-b border-[var(--border-clinical)] flex justify-between items-center">
+          <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-60 uppercase tracking-widest">Navegación / Tomas</span>
         </div>
       ) : (
         <h3 className="text-[9px] font-black uppercase tracking-[0.25em] text-[var(--text-secondary)] mb-3 px-2 py-3 opacity-50">
@@ -376,16 +375,16 @@ const TomaTimeline = memo(function TomaTimeline({
             const sortedRegs = [...t.registros].sort((a, b) => b.ordenToma - a.ordenToma);
             
             return (
-              <div key={t.idToma} className="flex flex-col border-b border-slate-100 last:border-0">
-                <div className="bg-[#FFF9E5] px-3 py-1.5 text-[13px] font-black text-slate-800 border-b border-slate-200 flex items-center justify-between gap-1">
+              <div key={t.idToma} className="flex flex-col border-b border-[var(--border-clinical)] last:border-0">
+                <div className="bg-[var(--timeline-header-bg)] px-3 py-1.5 text-[13px] font-black text-[var(--timeline-header-text)] border-b border-[var(--border-clinical)] flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1">
-                    <Hash size={11} className="text-slate-500" />
+                    <Hash size={11} className="text-[var(--text-secondary)] opacity-70" />
                     <HighlightedText text={t.idToma} query={query} />
                     {hasMatch(t.idToma) && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-1" title="Contiene coincidencias" />
                     )}
                   </div>
-                  <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 tabular-nums">
+                  <div className="flex items-center gap-1 text-[9px] font-bold text-[var(--text-secondary)] opacity-70 tabular-nums">
                     <span>{extractFecha(t.latest.data)}</span>
                     <span className="opacity-30">|</span>
                     <span>{extractHora(t.latest.data)}</span>
@@ -400,30 +399,30 @@ const TomaTimeline = memo(function TomaTimeline({
 
                   return (
                     <button
-                       key={`${t.idToma}-${orden}`}
+                      key={`${t.idToma}-${orden}`}
                       onClick={() => onSelect(tIdx, rIdx)}
-                      className={`flex items-center text-[11px] transition-all border-b border-slate-50 last:border-0 ${
+                      className={`flex items-center text-[11px] transition-all border-b border-[var(--border-clinical)] last:border-0 ${
                         isActive 
-                          ? 'bg-[#0074D9] text-white' 
+                          ? 'bg-[var(--accent-clinical)] text-white' 
                           : isMatch 
-                            ? 'bg-amber-100/50 text-slate-700 hover:bg-amber-100' 
-                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                            ? 'bg-[var(--timeline-match-bg)] text-[var(--text-primary)] hover:bg-[var(--timeline-match-bg)]' 
+                            : 'bg-[var(--surface-clinical)] text-[var(--text-secondary)] hover:bg-[var(--bg-clinical)]'
                       }`}
                     >
                       <span className={`px-3 py-2 w-10 font-black text-center border-r ${
                         isActive 
-                          ? 'border-blue-400/30' 
+                          ? 'border-[var(--accent-clinical)]/30' 
                           : isMatch 
-                            ? 'border-amber-200 text-amber-600 bg-amber-200/20' 
-                            : 'border-slate-100 text-slate-400'
+                            ? 'border-amber-200/30 text-amber-500 bg-amber-500/10' 
+                            : 'border-[var(--border-clinical)] text-[var(--text-secondary)]/50'
                       }`}>
                         {orden}
                       </span>
                       <div className="px-3 py-2 flex-1 flex items-center justify-end gap-1.5 tabular-nums overflow-hidden">
-                        <span className={`font-bold truncate ${!isActive && isMatch ? 'text-amber-700' : ''}`}>
+                        <span className={`font-bold truncate ${!isActive && isMatch ? 'text-amber-500' : ''}`}>
                           <HighlightedText text={fecha} query={query} />
                         </span>
-                        <span className={`text-[9px] font-medium ${isActive ? 'text-blue-100' : isMatch ? 'text-amber-500' : 'text-slate-400'}`}>{hora}</span>
+                        <span className={`text-[9px] font-medium ${isActive ? 'text-blue-100' : isMatch ? 'text-amber-500' : 'text-[var(--text-secondary)]/50'}`}>{hora}</span>
                       </div>
                     </button>
                   );
@@ -881,7 +880,7 @@ export default function HCEView({
   const ordenActivo = activeVersion?.ordenToma ?? 1;
 
   return (
-    <div className="flex flex-col w-full pt-8 pb-40 clinical-surface">
+    <div className="flex flex-col w-full pt-8 pb-40 bg-[var(--bg-clinical)]">
       <div className="flex gap-8 items-start justify-center">
         <aside className="w-52 shrink-0 hidden lg:block">
           <TomaTimeline
@@ -900,17 +899,17 @@ export default function HCEView({
 
         <div className="flex-1 min-w-0 max-w-4xl">
             <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-xl mb-4 shadow-sm overflow-hidden flex flex-col">
-              <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 border-b border-[var(--border-clinical)] bg-[#FFF9E5]">
+              <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 border-b border-[var(--border-clinical)] bg-[var(--surface-elevated)]">
                 <div className="flex items-center gap-2 min-w-[140px]">
-                  <span className="text-[16px] font-black text-slate-800 uppercase">NHC:</span>
-                  <span className="text-[20px] font-black text-slate-900">{patient.nhc}</span>
+                  <span className="text-[16px] font-black text-[var(--text-secondary)] uppercase">NHC:</span>
+                  <span className="text-[20px] font-black text-[var(--text-primary)]">{patient.nhc}</span>
                 </div>
                 <HeaderField label="CIPA" value={demo['cipa'] || demo['CIPA']} />
                 <HeaderField label="EC_Sexo" value={demo['sexo'] || demo['Sexo']} />
                   <HeaderField label="F_Nacimiento" value={demo['fechaNacimiento'] || demo['Fecha de Nacimiento']} />
                 </div>
 
-              <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 bg-white">
+              <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 bg-[var(--surface-clinical)]">
                 <HeaderField label="C.P" value={demo['cp'] || demo['Código Postal']} />
                 <HeaderField label="Edad" value={demo['edad'] || activeVersion?.data['Edad'] || activeVersion?.data['EDAD']} />
                 <HeaderField label="AMBITO" value={demo['ambito'] || activeVersion?.data['Ámbito'] || activeVersion?.data['AMBITO']} />
@@ -953,7 +952,7 @@ export default function HCEView({
 
               {clinicalSchema ? (
                 <div className="flex flex-col gap-2">
-                  <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold flex items-center gap-2 shadow-sm">
+                  <div className="mb-6 p-4 bg-[var(--status-success-bg)] border border-[var(--status-success-border)] text-[var(--status-success-text)] text-xs rounded-xl font-bold flex items-center gap-2 shadow-sm">
                     <Eye size={14} />
                     Modo Visualización Dinámica: {clinicalSchema.name} v{clinicalSchema.version}
                   </div>
@@ -1019,7 +1018,7 @@ export default function HCEView({
                           <div key={sub.title || subIdx} className="flex flex-col gap-4">
                             {sub.title && sub.title.toUpperCase() !== 'ANTECEDENTES PERSONALES' && (narrativeFields.length > 0 || !isGrid) && (
                               <div className="mb-2">
-                                <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 w-full shadow-sm">
+                                <div className="bg-[var(--accent-clinical)] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-[var(--border-clinical)] w-full shadow-sm">
                                   {sub.title}:
                                 </div>
                               </div>

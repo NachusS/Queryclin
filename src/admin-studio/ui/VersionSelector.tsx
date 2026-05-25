@@ -93,11 +93,15 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({ currentSchema,
               <span className="text-xs font-black text-[var(--text-primary)]">Versión {v.version}</span>
               <div className="flex items-center gap-2">
                 {v.version === activeVersion && (
-                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-blue-50 text-blue-600 border-blue-200 uppercase flex items-center gap-0.5">
+                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 uppercase flex items-center gap-0.5">
                     <Shield size={8} /> Activa
                   </span>
                 )}
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border ${v.status === 'published' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'} uppercase`}>
+                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border ${
+                  v.status === 'published' 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' 
+                    : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
+                } uppercase`}>
                   {v.status}
                 </span>
               </div>

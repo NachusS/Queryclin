@@ -60,7 +60,7 @@ export default function GlobalHeader({
                     (activeFilters?.onlyLatestSnapshot ? 1 : 0) > 0;
 
   return (
-    <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex items-center px-6 gap-6 shadow-sm backdrop-blur-md bg-opacity-95 shrink-0 z-50 clinical-surface">
+    <header className="h-16 bg-[var(--surface-clinical)] border-b border-[var(--border-clinical)] flex items-center px-6 gap-6 shadow-sm backdrop-blur-md bg-opacity-95 shrink-0 z-50">
       {/* IZQUIERDA: Marca, NachuS y Versión (Siempre visible) */}
       <div className="flex items-center gap-6 shrink-0">
         <div onClick={onGoHome} className="flex items-center gap-3 cursor-pointer group">
@@ -151,7 +151,7 @@ export default function GlobalHeader({
               </form>
 
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[var(--border-clinical)] rounded-xl shadow-2xl overflow-hidden z-[100]">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface-primary)] border border-[var(--border-clinical)] rounded-xl shadow-2xl overflow-hidden z-[100]">
                   {suggestions.map((s, idx) => (
                     <button
                       key={idx}
@@ -170,7 +170,7 @@ export default function GlobalHeader({
               )}
               
               {!showSuggestions && hasFilters && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-amber-50 border border-amber-200 rounded-lg py-1.5 px-3 text-center text-[11px] text-amber-700 font-bold shadow-sm z-40 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] rounded-lg py-1.5 px-3 text-center text-[11px] text-[var(--status-warning-text)] font-bold shadow-sm z-40 animate-in fade-in slide-in-from-top-2">
                   ⚠️ Búsqueda restringida. Se están ignorando las áreas clínicas no incluidas en el filtro activo.
                 </div>
               )}
@@ -213,7 +213,7 @@ export default function GlobalHeader({
           <button 
             onClick={toggleDebug}
             title={debugMode ? "Desactivar Modo Debug" : "Activar Modo Debug"}
-            className={`p-2 rounded-full transition-all ${debugMode ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50'}`}
+            className={`p-2 rounded-full transition-all ${debugMode ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10'}`}
           >
             {debugMode ? <Bug size={20} /> : <Eye size={20} />}
           </button>
@@ -222,7 +222,7 @@ export default function GlobalHeader({
             <button 
               onClick={onToggleAdmin}
               title="Admin Studio (Form Designer)"
-              className="p-2 rounded-full transition-all text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-emerald-50"
+              className="p-2 rounded-full transition-all text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-emerald-500/10"
             >
               <Settings size={20} />
             </button>
@@ -248,7 +248,7 @@ export default function GlobalHeader({
           
           <button 
             onClick={onClearData}
-            className="w-9 h-9 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 transition-all shadow-inner active:scale-95"
+            className="w-9 h-9 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 transition-all shadow-inner active:scale-95"
             title="Borrar base de datos local"
           >
             <Database size={18} />

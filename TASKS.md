@@ -468,5 +468,12 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **T8. Validación y Certificación del Merge**: Ejecución de las suites de prueba unitarias completas, typechecking y builds de producción limpios antes de la consolidación final.
 - [Logro]: Consolidación y merge seguro de la rama `feature/admin-studio` en `main` bajo la versión V7.2.1-STABLE, garantizando cero regresiones, persistencia estable de IndexedDB y tipado estricto certificado.
 
+## 🚀 FASE 42: UI/UX Hardening & Dark Mode Refactor (V7.2.2-STABLE — COMPLETADA ✅)
+- [x] **A72. Favicon e Identidad Visual**: Generación e integración de `favicon.ico`, `apple-touch-icon.png`, PWA assets y configuración de `manifest.json` y metadatos en `index.html`.
+- [x] **U45. Sincronización de Modo Oscuro**: Tematización semántica de componentes que tenían estilos fijos en modo claro (Timeline lateral, panel de datos demográficos, cabeceras, Admin Studio) con paleta Slate/Zinc médica.
+- [x] **U46. Scrollbars Tematizadas**: Barras de desplazamiento adaptativas que respetan los fondos de tema activo.
+- [x] **A73. Limpieza de Clases Estáticas**: Remoción total de la clase CSS de color duro `.clinical-surface` y estilos `bg-white`, `bg-slate-50`, `text-slate-900`.
+- [Logro]: Interfaz visual completamente pulida y homogeneizada para modo claro y modo oscuro, manteniendo la estética clínica profesional y solucionando problemas de visualización y compatibilidad de marca (favicon).
+
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*
