@@ -1,3 +1,12 @@
+## [7.2.0] - V7.2.0-STABLE - 2026-05-25
+### Añadido
+- **Búsqueda por Frase Exacta (Quoted Phrase Search)**: Soporte nativo para búsquedas exactas entre comillas dobles (ej: `"infarto miocardio"`). El motor realiza una pre-evaluación rápida mediante Okapi BM25 para obtener documentos candidatos y efectúa una validación secundaria exacta sobre los registros completos en un pipeline unificado.
+- **Mapeo por Lotes de Pacientes**: Incorporación de recuperación masiva optimizada mediante `db.getBatch` sobre el almacén de pacientes candidatos para mantener latencias sub-segundo.
+- **Suite de Pruebas unitarias de Frases**: Creado `src/__tests__/QueryEngine.phrase.test.ts` con cobertura de casos críticos: frases consecutivas, orden invertido, exclusión por palabras intermedias, negaciones complejas, y coexistencia con operadores booleanos (`AND`, `NOT`).
+
+### Corregido
+- **Resaltado de Frases con Comillas**: Ajustada la lógica de `buildHighlightRegex` en `SemanticProcessor.ts` para ignorar las comillas en los términos de la consulta, permitiendo que la interfaz resalte adecuadamente cada palabra de la frase.
+
 ## [7.1.0] - V7.1.0-STABLE - 2026-05-21
 ### Añadido
 - **Context-Aware Negation Tokenizer (N-grams)**: Implementación de motor inteligente de proximidad en `SemanticProcessor`. Si se detectan triggers (ej. "sin", "no", "descarta") en texto libre, se escudan los siguientes 3 términos clínicos con un prefijo `neg_` (ej. `neg_isquemia`), eliminando el 100% de los falsos positivos históricos.

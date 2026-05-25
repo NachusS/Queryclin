@@ -156,8 +156,9 @@ export class SemanticProcessor {
   public static buildHighlightRegex(query: string): RegExp | null {
     if (!query.trim()) return null;
 
-    const normalizedQuery = this.normalize(query);
-    const rawTerms = [...query.split(/\s+/), ...normalizedQuery.split(/\s+/)].filter(t => t.length > 1 && !['AND', 'OR', 'NOT'].includes(t.toUpperCase()));
+    const cleanQuery = query.replace(/"/g, ' ');
+    const normalizedQuery = this.normalize(cleanQuery);
+    const rawTerms = [...cleanQuery.split(/\s+/), ...normalizedQuery.split(/\s+/)].filter(t => t.length > 1 && !['AND', 'OR', 'NOT'].includes(t.toUpperCase()));
     
     const allVariants = new Set<string>();
     

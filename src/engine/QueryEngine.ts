@@ -3,6 +3,56 @@ import { db } from '../storage/indexedDB';
 import { SemanticProcessor } from './SemanticProcessor';
 import { selectLatestSnapshots } from './selectLatestSnapshots';
 import { normalizeString } from '../utils/stringNormalizer';
+import { Patient } from '../core/types';
+
+interface ParsedNode {
+  text: string;
+  isPhrase: boolean;
+  prefixMinus: boolean;
+}
+
+function parseQueryIntoNodes(query: string): ParsedNode[] {
+  const nodes: ParsedNode[] = [];
+  const regex = /(-)?(?:"([^"]+)"|([^\s"]+))/g;
+  let match;
+  while ((match = regex.exec(query)) !== null) {
+    const hasMinus = !!match[1];
+    const phraseContent = match[2];
+    const normalContent = match[3];
+    
+    if (phraseContent !== undefined) {
+      nodes.push({
+        text: phraseContent,
+        isPhrase: true,
+        prefixMinus: hasMinus
+      });
+    } else if (normalContent !== undefined) {
+      nodes.push({
+        text: normalContent,
+        isPhrase: false,
+        prefixMinus: hasMinus
+      });
+    }
+  }
+  return nodes;
+}
+
+function cleanForPhraseMatch(text: string): string {
+  return normalizeString(text)
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasPhraseMatch(fieldValue: any, cleanPhrase: string): boolean {
+  if (Array.isArray(fieldValue)) {
+    return fieldValue.some(val => hasPhraseMatch(val, cleanPhrase));
+  }
+  if (typeof fieldValue !== 'string') return false;
+  
+  const cleanVal = cleanForPhraseMatch(fieldValue);
+  return cleanVal.includes(cleanPhrase);
+}
 
 // ============================================================
 // OKAPI BM25 — Parámetros de ajuste (V3.9.0)
@@ -283,60 +333,119 @@ export class QueryEngine {
     }
 
     const parseStart = performance.now();
-    const normalizedQuery = SemanticProcessor.normalize(query);
-    const rawTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 0);
     const must: string[] = [];
     const mustNot: string[] = [];
     const should: string[] = [];
+    const phraseChecks: { text: string; isNegative: boolean }[] = [];
 
-    for (let i = 0; i < rawTerms.length; i++) {
-      const originalTerm = rawTerms[i];
-      const termUpper = originalTerm.toUpperCase();
-      const prev = rawTerms[i - 1]?.toUpperCase();
-      const next = rawTerms[i + 1]?.toUpperCase();
-      
-      if (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT') continue;
+    const hasPhrases = query.includes('"');
 
-      const rawTokens = SemanticProcessor.tokenize(originalTerm);
-      const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens;
-      
-      const compact = originalTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
-      if (isCode && compact.length > 3 && !tokens.includes(compact)) {
-        tokens.push(compact);
+    if (!hasPhrases) {
+      const normalizedQuery = SemanticProcessor.normalize(query);
+      const rawTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 0);
+
+      for (let i = 0; i < rawTerms.length; i++) {
+        const originalTerm = rawTerms[i];
+        const termUpper = originalTerm.toUpperCase();
+        const prev = rawTerms[i - 1]?.toUpperCase();
+        const next = rawTerms[i + 1]?.toUpperCase();
+        
+        if (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT') continue;
+
+        const rawTokens = SemanticProcessor.tokenize(originalTerm);
+        const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens;
+        
+        const compact = originalTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
+        if (isCode && compact.length > 3 && !tokens.includes(compact)) {
+          tokens.push(compact);
+        }
+        
+        if (tokens.length === 0) continue;
+        
+        if (prev === 'NOT' || originalTerm.startsWith('-')) {
+          mustNot.push(...tokens);
+        } else if (next === 'OR' || prev === 'OR') {
+          should.push(...tokens);
+        } else {
+          must.push(...tokens);
+        }
       }
-      
-      if (tokens.length === 0) continue;
-      
-      if (prev === 'NOT' || originalTerm.startsWith('-')) {
-        mustNot.push(...tokens);
-      } else if (next === 'OR' || prev === 'OR') {
-        should.push(...tokens);
-      } else {
-        must.push(...tokens);
+    } else {
+      const nodes = parseQueryIntoNodes(query);
+
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const termUpper = node.text.toUpperCase();
+        
+        if (!node.isPhrase && (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT')) {
+          continue;
+        }
+        
+        const prevNode = i > 0 ? nodes[i - 1] : null;
+        const nextNode = i < nodes.length - 1 ? nodes[i + 1] : null;
+        
+        const prevUpper = prevNode && !prevNode.isPhrase ? prevNode.text.toUpperCase() : null;
+        const nextUpper = nextNode && !nextNode.isPhrase ? nextNode.text.toUpperCase() : null;
+        
+        const isNegated = node.prefixMinus || prevUpper === 'NOT';
+        const isOr = prevUpper === 'OR' || nextUpper === 'OR';
+
+        if (node.isPhrase) {
+          phraseChecks.push({ text: node.text, isNegative: isNegated });
+          if (!isNegated) {
+            const phraseTokens = SemanticProcessor.tokenize(node.text);
+            if (isOr) {
+              should.push(...phraseTokens);
+            } else {
+              must.push(...phraseTokens);
+            }
+          }
+        } else {
+          const rawTokens = SemanticProcessor.tokenize(node.text);
+          const tokens = rawTokens.length > 1 ? [rawTokens[rawTokens.length - 1]] : rawTokens;
+          
+          const compact = node.text.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const isCode = /[a-z]/.test(compact) && /[0-9]/.test(compact);
+          if (isCode && compact.length > 3 && !tokens.includes(compact)) {
+            tokens.push(compact);
+          }
+          
+          if (tokens.length === 0) continue;
+          
+          if (isNegated) {
+            mustNot.push(...tokens);
+          } else if (isOr) {
+            should.push(...tokens);
+          } else {
+            must.push(...tokens);
+          }
+        }
       }
     }
 
     const uniqueMust = Array.from(new Set(must));
 
     if (must.length === 0 && should.length === 0) {
-      if (signal?.aborted) {
-        throw new DOMException('Search aborted', 'AbortError');
+      if (phraseChecks.length === 0) {
+        if (signal?.aborted) {
+          throw new DOMException('Search aborted', 'AbortError');
+        }
+        const allResults = await this.getAllRecords(filters, signal);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        this.metrics.lastSearchDurationMs = duration;
+        this.metrics.totalSearchTimeMs += duration;
+        this.metrics.searchCount++;
+        
+        if (duration > 100) {
+          this.metrics.slowQueriesCount++;
+          console.warn(`[QueryEngine Warning] Slow query detected: "${query}" took ${duration.toFixed(2)}ms.`);
+        }
+        
+        this.setQueryCache(cacheKey, allResults);
+        return allResults;
       }
-      const allResults = await this.getAllRecords(filters, signal);
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-      this.metrics.lastSearchDurationMs = duration;
-      this.metrics.totalSearchTimeMs += duration;
-      this.metrics.searchCount++;
-      
-      if (duration > 100) {
-        this.metrics.slowQueriesCount++;
-        console.warn(`[QueryEngine Warning] Slow query detected: "${query}" took ${duration.toFixed(2)}ms.`);
-      }
-      
-      this.setQueryCache(cacheKey, allResults);
-      return allResults;
     }
 
     const allQueryTokens = Array.from(new Set([...uniqueMust, ...should, ...mustNot]));
@@ -393,6 +502,34 @@ export class QueryEngine {
 
     const calcStart = performance.now();
     const patientMatches: Record<string, any> = Object.create(null);
+    
+    if (must.length === 0 && should.length === 0 && phraseChecks.length > 0) {
+      for (const nhc in this.patientSkeletons) {
+        const skeleton = this.patientSkeletons[nhc];
+        if (!skeleton || !skeleton.tomasMeta) continue;
+        
+        patientMatches[nhc] = {
+          nhc,
+          totalScore: 1.0,
+          registros: {},
+          matchedMustTokens: new Set<string>(),
+          matchedTokens: new Set<string>()
+        };
+        for (const idToma in skeleton.tomasMeta) {
+          const meta = skeleton.tomasMeta[idToma];
+          const maxOrd = meta.maxOrden ?? 0;
+          for (let ord = 0; ord <= maxOrd; ord++) {
+            const regId = `${idToma}_${ord}`;
+            patientMatches[nhc].registros[regId] = {
+              idToma,
+              ordenToma: ord,
+              score: 1.0,
+              matchedTokens: new Set<string>()
+            };
+          }
+        }
+      }
+    }
     
     const mustNotRecords = new Set<string>();
     for (const term of mustNot) {
@@ -552,11 +689,20 @@ export class QueryEngine {
     let results: SearchResult[] = [];
     const filterService = filters?.service?.toLowerCase();
 
-    for (const nhc in patientMatches) {
+    const candidateNhcs = Object.keys(patientMatches).filter(nhc => {
+      const pm = patientMatches[nhc];
+      if (uniqueMust.length > 0 && pm.matchedMustTokens.size < uniqueMust.length) return false;
+      return Object.keys(pm.registros).length > 0;
+    });
+
+    let patientsData: Record<string, Patient> = {};
+    if (phraseChecks.length > 0 && candidateNhcs.length > 0) {
+      patientsData = await db.getBatch(db.stores.patients, candidateNhcs);
+    }
+
+    for (const nhc of candidateNhcs) {
       const pm = patientMatches[nhc];
       const skeleton = this.patientSkeletons[nhc];
-
-      if (uniqueMust.length > 0 && pm.matchedMustTokens.size < uniqueMust.length) continue;
 
       const flatRegistros = Object.values(pm.registros).sort((a: any, b: any) => b.score - a.score);
       if (flatRegistros.length === 0) continue;
@@ -573,6 +719,33 @@ export class QueryEngine {
               if (filterEnd && meta.date > filterEnd) return false;
            }
         }
+
+        if (phraseChecks.length > 0) {
+          const patientData = patientsData[nhc];
+          if (!patientData) return false;
+          
+          const toma = patientData.tomas?.[reg.idToma];
+          const registro = toma?.registros?.find((r: any) => r.ordenToma === reg.ordenToma);
+          if (!registro) return false;
+          
+          for (const check of phraseChecks) {
+            const cleanPhrase = cleanForPhraseMatch(check.text);
+            let found = false;
+            for (const value of Object.values(registro.data)) {
+              if (hasPhraseMatch(value, cleanPhrase)) {
+                found = true;
+                break;
+              }
+            }
+            if (check.isNegative) {
+              if (found) return false;
+            } else {
+              if (!found) return false;
+            }
+          }
+          reg.record = registro;
+        }
+
         return true;
       });
 

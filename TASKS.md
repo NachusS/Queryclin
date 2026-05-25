@@ -453,5 +453,12 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **T6. Certificación QA Release Candidate**: Auditoría y verificación profunda de los 10 puntos críticos (Core Engine, Edge Cases, Security, UI/UX, Performance) sin hallazgos negativos, logrando 0 warnings estáticos en TypeScript.
 - [Logro]: El sistema asimila madurez grado-producción ("Production-Ready"). La arquitectura exhibe resiliencia absoluta de memoria, latencias ultra-bajas, protección nativa contra fugas de VDOM y máxima fiabilidad pericial en la exploración semántica del historial médico.
 
+## 🚀 FASE 40: Soporte Seguro de Búsqueda por Frase Exacta (V7.2.0-STABLE — COMPLETADA ✅)
+- [x] **A68. Extensión del Parser de Consultas**: Incorporación de soporte para detectar y procesar segmentos entre comillas dobles (`" "`) como tokens de tipo `PHRASE`, manteniendo total compatibilidad con operadores booleanos (`AND`, `OR`, `NOT`).
+- [x] **A69. Evaluación Secundaria y Filtrado por Lotes**: Implementación de una fase de refinamiento post-BM25 en `QueryEngine` que recupera candidatos en lote mediante `db.getBatch(db.stores.patients)` y realiza coincidencia estricta y consecutiva sobre los textos normalizados.
+- [x] **U42. Resaltado de Sintaxis de Frases**: Corrección del generador de expresiones regulares de resaltado en `SemanticProcessor.ts` para eliminar comillas y destacar correctamente los términos constitutivos del texto en el visor HCE.
+- [x] **T7. Suite de Pruebas de Búsqueda por Frase**: Desarrollo del archivo de especificación `QueryEngine.phrase.test.ts` con cobertura de los 6 casos de uso clínico obligatorios y validación secuencial libre de colisiones.
+- [Logro]: Queryclin permite búsquedas literales ultra-precisas sin alterar la persistencia física, la base de datos o el motor BM25, conservando el 100% de la compatibilidad hacia atrás en producción.
+
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*
