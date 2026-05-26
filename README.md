@@ -1,96 +1,328 @@
-# Queryclin — HCE Intelligence & Admin Studio (V7.0.0-STABLE) 🚀
+# Queryclin — HCE Intelligence & Admin Studio 🚀
 
-Queryclin es una plataforma de exploración y análisis de **Historias Clínicas Electrónicas (HCE)** diseñada bajo principios de **privacidad absoluta y rendimiento local**. Permite al personal clínico navegar, buscar y segmentar grandes volúmenes de datos directamente en el navegador sin dependencias de red.
-
----
-
-## 1. El Problema y Nuestro Propósito
-El personal médico se ve frecuentemente forzado a lidiar con exportaciones masivas de HCE en formatos crudos (Texto plano o Excel). Interpretar estas sábanas de datos genera una inmensa fatiga visual y riesgo de errores. 
-
-**Queryclin** nació con la misión de construir un motor que permitiera la navegación fluida y la búsqueda contextual profunda en vastos expedientes en milisegundos.
-
-> [!IMPORTANT]
-> **Privacidad Local-First:** Debido a la sensibilidad de los datos médicos, la arquitectura es estrictamente local. Los datos jamás abandonan la computadora; todo el procesamiento se realiza en la base de datos del cliente (IndexedDB) y la memoria del navegador.
+> Plataforma avanzada para exploración, auditoría y análisis estructural de Historias Clínicas Electrónicas (HCE) bajo arquitectura **Local-First**.
 >
-> **Entorno Público:** Este repositorio y su despliegue son **PÚBLICOS**. Bajo ninguna circunstancia se debe subir información clínica real, datos de pacientes o secretos de infraestructura hospitalaria. Todos los ejemplos y datasets incluidos son 100% sintéticos.
+> Diseñada para transformar grandes volúmenes de datos clínicos heterogéneos en un entorno navegable, semánticamente coherente y operativamente eficiente, manteniendo privacidad absoluta y procesamiento íntegramente local.
+>
+> 🌐 Web oficial: https://xaviaerox.github.io/Queryclin/
 
 ---
 
-## 2. Génesis del Proyecto
-La visión original se basó en transformar la experiencia de auditoría clínica:
-- **Simplicidad de Uso:** Un buscador central limpio que acepta la carga de archivos por arrastre.
-- **Arquitectura de Escala (v3):** Capacidad para gestionar hasta **100.000 pacientes** de forma fluida mediante procesamiento paralelo (Web Workers).
-- **Sintaxis Booleana Estricta:** Motor de búsqueda que soporta lógica natural (`diabetes AND asma NOT fumador`).
-- **Navegación de Toma Única Activa (v4):** Rediseño del visor HCE para centrar la atención en una única sesión clínica, con timeline lateral para navegación cronológica rápida.
-- **Admin Studio (v6):** Motor de diseño de formularios dinámicos con sistema de gobernanza y persistencia avanzada.
+# 1. Introducción
+
+La digitalización sanitaria ha multiplicado exponencialmente la disponibilidad de información clínica. Sin embargo, gran parte de estos datos continúan exportándose desde sistemas hospitalarios en formatos planos y poco estructurados (CSV, Excel o texto libre), dificultando su explotación analítica y aumentando considerablemente la carga cognitiva durante procesos de auditoría, revisión clínica o investigación retrospectiva.
+
+En este contexto, la capacidad de interpretar rápidamente grandes volúmenes de información clínica se convierte en un problema tanto tecnológico como operativo.
+
+**Queryclin** surge como una respuesta a esta necesidad.
+
+La plataforma ha sido concebida como un motor de exploración clínica de alta precisión capaz de procesar datasets masivos directamente en el navegador, permitiendo transformar registros desestructurados en una representación clínica navegable, cronológica y semánticamente consistente en tiempo real.
 
 ---
 
-## 3. Arquitectura e Ingesta Inteligente
+# 2. Objetivo del Proyecto
 
-Tras las últimas refactorizaciones para asegurar la escalabilidad masiva y estabilidad ante la auditoría, el stack se compone de una **Arquitectura Limpia (Clean Architecture)** desacoplada:
+El propósito principal de Queryclin es proporcionar un entorno de trabajo clínico capaz de:
 
-- **React 19 + TypeScript:** Esquema de datos estricto para garantizar la integridad clínica.
-- **Capa de Dominio (`src/core/`):** Modelos de datos y taxonomía clínica unificada.
-- **Capa de Aplicación e Ingesta (`src/ingestion/`):** Workers de procesamiento paralelo y streaming de datos tabulares.
-- **Capa de Infraestructura y Storage (`src/storage/`):** Persistencia en IndexedDB con fragmentación inteligente.
-- **Motor de Búsqueda Clínico (`src/engine/`):** 
-  - *`IndexerService.ts`*: Ingesta asíncrona con **Negation Shielding** y caché de sesión para evitar fugas de memoria (OOM).
-  - *`QueryEngine.ts`*: Motor de recuperación basado en **Okapi BM25** con soporte para filtrado estructural y *Post-Score Field Boosting*.
-  - *`SemanticProcessor.ts`*: Única fuente de verdad para tokenización clínica, *stemming* de lista blanca y expansión semántica.
+- Facilitar la navegación de Historias Clínicas Electrónicas complejas.
+- Reducir la fricción cognitiva durante auditorías y revisiones masivas.
+- Mejorar la trazabilidad temporal y estructural de los episodios clínicos.
+- Permitir búsquedas clínicas avanzadas con interpretación contextual.
+- Garantizar privacidad total mediante procesamiento exclusivamente local.
 
----
-
-## 4. Evolución de Características (Roadmap)
-
-### Fase 23: Gobernanza Agéntica Institucional (V6.0.0 ✅)
-- **Admin Studio**: Implementación integral del motor de diseño Drag-and-Drop.
-- **Marco de Gobernanza**: Establecimiento de reglas inmutables para el desarrollo asistido por IA.
-
-### Fase 24: Refactor Semántico y Búsqueda Estructural (V6.1.0 ✅)
-- **Motor Semántico Centralizado**: Implementación de `SemanticProcessor`.
-- **Negation Shielding**: Eliminación de falsos positivos en búsquedas clínicas (HTA: NO).
-
-### Fase 25: Auditoría Integral y Estabilización (V6.2.2 ✅)
-- **Optimización de Memoria**: Resolución definitiva de bloqueos por Out-Of-Memory (OOM) en archivos de gran escala.
-- **Hardening de UI**: Implementación de guardas defensivas en la navegación y corrección de excepciones de renderizado.
-- **Integridad de Mapeos**: Mapeado universal de campos clínicos y expansión de alias de robustez.
-- **Unificación de Código**: Eliminación de redundancia funcional bajo estándares industriales.
-
-### Fase 26: Production Freeze (V7.0.0-STABLE — ACTUAL 🚀)
-- **Estabilización de Arquitectura**: Congelación de APIs semánticas y contratos de persistencia IndexedDB.
-- **Tolerancia a Fallos**: Funciones de recuperación ante desastres (`HEALTHCHECK`, reinicios de emergencia).
-- **Limpieza de Background**: Rutinas automatizadas de recolección de basura (Garbage Collection).
+La plataforma no pretende sustituir sistemas hospitalarios existentes, sino actuar como una capa de inteligencia y exploración sobre exportaciones clínicas ya disponibles.
 
 ---
 
-## 5. Instrucciones de Uso y Despliegue
+# 3. Principios Fundamentales de Arquitectura
 
-### Entorno Local
-1. Instalar dependencias: `npm install`
-2. Iniciar servidor de desarrollo: `npm run dev`
+## 🛡️ Local-First y Privacidad Absoluta
 
----
+Debido a la sensibilidad inherente de los datos sanitarios, Queryclin adopta una arquitectura estrictamente *Local-First*.
 
-## 6. Documentación y Gobernanza
+Todo el procesamiento, indexación y persistencia se ejecuta íntegramente en el navegador mediante:
 
-Este repositorio sigue un estricto protocolo de **Gobernanza Agéntica** para garantizar la calidad y seguridad del desarrollo.
+- IndexedDB
+- Web Workers
+- Memoria local del cliente
 
-- **[TASKS.md](TASKS.md)**: Listado maestro de objetivos y fases técnicas.
-- **[CHANGELOG.md](CHANGELOG.md)**: Registro cronológico detallado de modificaciones y auditorías.
-- **[RULES.md](RULES.md)**: Constitución y reglas de desarrollo del sistema.
-
-> [!NOTE]
-> Los detalles estratégicos del marco de gobernanza y los planes maestros de auditoría son de uso **interno** y no se exponen en este repositorio público para proteger la integridad del proyecto.
+Los datos nunca son transmitidos a servidores externos ni a servicios de terceros.
 
 ---
 
-> [!IMPORTANT]
-> **Instrucciones para Agentes de IA:** Toda modificación debe registrarse en `CHANGELOG.md` y actualizar la tarea correspondiente en `TASKS.md` siguiendo el protocolo de estabilidad V6.2.
+## 🧠 Integridad Semántica del Dato
 
-- **[Contribución Segura](security/SAFE_CONTRIBUTING.md)**: Reglas para colaboradores externos.
+El sistema incorpora un motor semántico especializado capaz de:
+
+- Expandir terminología clínica equivalente.
+- Detectar negaciones contextuales.
+- Interpretar relaciones estructurales implícitas.
+- Reducir falsos positivos en búsquedas médicas.
+
+Esto permite realizar consultas clínicamente coherentes incluso sobre datasets heterogéneos o parcialmente inconsistentes.
 
 ---
 
-> [!IMPORTANT]
-> **Instrucciones para Agentes de IA:** Es obligatorio consultar el directorio `.ag/` antes de iniciar cualquier tarea. Toda modificación debe registrarse en `CHANGELOG.md` y actualizar la tarea correspondiente en `/tasks`.
+## ⚖️ Gobernanza y Fidelidad Clínica
+
+Queryclin mantiene una política estricta de:
+
+- No alteración destructiva del dato original.
+- Trazabilidad completa de cambios.
+- Separación arquitectónica de responsabilidades.
+- Exclusión total de datos clínicos reales en entornos públicos.
+
+---
+
+# 4. Ecosistema Queryclin
+
+La plataforma se estructura en dos grandes módulos complementarios.
+
+---
+
+## 🔍 Queryclin — Core Engine & Clinical Viewer
+
+Motor principal de búsqueda y visualización clínica.
+
+Su función es interpretar la estructura implícita de la Historia Clínica Electrónica y convertirla en una experiencia navegable y contextual.
+
+### Capacidades principales
+
+- Búsqueda clínica booleana (`AND / OR / NOT`)
+- Navegación cronológica por tomas clínicas
+- Filtrado contextual avanzado
+- Resaltado semántico de hallazgos
+- Interpretación estructural de antecedentes, diagnósticos y resultados
+- Visualización jerárquica de episodios clínicos
+
+El sistema permite aislar episodios específicos sin perder la visión longitudinal completa del paciente.
+
+---
+
+## 🧩 Queryclin Admin Studio
+
+Entorno de diseño clínico declarativo orientado a la gobernanza estructural del dato.
+
+Permite construir formularios dinámicos y taxonomías clínicas mediante una interfaz visual *Drag-and-Drop*.
+
+### Funcionalidades
+
+- Diseño de formularios clínicos dinámicos
+- Definición de estructuras desde cero
+- Reutilización de modelos hospitalarios estándar (MIR, OBS, ALG)
+- Gestión de secciones y grupos clínicos
+- Control de taxonomías y mappings
+- Persistencia estructural avanzada
+
+Admin Studio actúa como capa institucional de normalización y consistencia semántica.
+
+---
+
+# 5. Evolución Tecnológica del Proyecto
+
+La evolución de Queryclin ha estado orientada a tres objetivos principales:
+
+- Escalabilidad
+- Precisión clínica
+- Robustez operativa
+
+---
+
+## Primera etapa — Motor de exploración clínica
+
+Desarrollo inicial del sistema de indexación y búsqueda booleana avanzada.
+
+Durante esta fase se validó la capacidad de procesar datasets clínicos de gran escala directamente en cliente.
+
+### Hitos
+
+- Soporte para más de 100.000 registros
+- Procesamiento paralelo mediante Web Workers
+- Persistencia fragmentada en IndexedDB
+- Pipeline de ingestión por streaming
+
+---
+
+## Segunda etapa — Inteligencia semántica y navegación contextual
+
+Introducción del procesador semántico y del sistema de navegación cronológica por tomas clínicas.
+
+### Hitos
+
+- SemanticProcessor
+- Expansión de sinónimos clínicos
+- Negation Shielding
+- Timeline clínico contextual
+- Field Boosting estructural
+
+---
+
+## Etapa actual — Estabilización de producción
+
+La plataforma se encuentra actualmente en fase de consolidación arquitectónica y endurecimiento operativo (*Production Freeze*).
+
+### Mejoras recientes
+
+- Optimización avanzada de memoria
+- Prevención de Out-Of-Memory (OOM)
+- Recuperación automática ante fallos
+- Gestión resiliente de IndexedDB
+- Eliminación de condiciones de carrera
+- Cacheado y optimización de consultas
+
+---
+
+# 6. Framework Tecnológico
+
+Queryclin ha sido desarrollado utilizando:
+
+- **React 19**
+- **TypeScript**
+- **Vite**
+- **TailwindCSS**
+- **IndexedDB**
+- **Web Workers**
+
+La arquitectura sigue principios de **Clean Architecture**, garantizando desacoplamiento entre:
+
+- Dominio clínico
+- Motor semántico
+- Persistencia
+- Ingesta
+- Interfaz de usuario
+
+---
+
+# 7. Organización del Código Fuente
+
+```text
+src/
+├── core/        # Dominio clínico y taxonomías
+├── ingestion/   # Ingesta y procesamiento paralelo
+├── storage/     # Persistencia local e IndexedDB
+├── engine/      # Motor semántico y búsqueda clínica
+├── components/  # UI clínica y visualización HCE
+└── admin-studio/# Diseño declarativo y gobernanza
+```
+
+---
+
+# 8. Gobernanza Híbrida y Desarrollo Asistido por IA
+
+El proyecto incorpora un modelo de gobernanza híbrida orientado al desarrollo coordinado entre ingeniería humana y agentes de inteligencia artificial.
+
+Toda la lógica organizativa y normativa se centraliza mediante:
+
+- `RULES.md`
+- `TASKS.md`
+- `CHANGELOG.md`
+- Directorio `.ag/`
+
+Este sistema garantiza:
+
+- Trazabilidad completa
+- Persistencia histórica
+- Coherencia arquitectónica
+- Protección de la integridad clínica
+- Control estricto de evolución del software
+
+---
+
+# 9. Desafíos Técnicos Relevantes
+
+## Gestión de Memoria a Gran Escala
+
+Uno de los principales retos del proyecto fue evitar bloqueos del navegador durante el procesamiento de datasets clínicos masivos.
+
+La solución requirió:
+
+- Procesamiento paralelo
+- Fragmentación inteligente
+- Streaming incremental
+- Cachés optimizados
+- Persistencia desacoplada
+
+---
+
+## Interpretación del Contexto Clínico
+
+La búsqueda textual tradicional resulta insuficiente en entornos sanitarios.
+
+Se desarrolló un sistema de interpretación contextual capaz de discriminar entre:
+
+- Hallazgos positivos
+- Negaciones clínicas
+- Contextos históricos
+- Variantes terminológicas
+
+Esto permitió reducir falsos positivos críticos durante auditorías clínicas.
+
+---
+
+## Normalización de Datos Legacy
+
+La heterogeneidad de exportaciones hospitalarias obligó a construir un sistema de unificación no destructiva capaz de interpretar:
+
+- Cabeceras inconsistentes
+- Estructuras incompletas
+- Variaciones semánticas
+- Modelos históricos legacy
+
+---
+
+# 10. Documentación del Proyecto
+
+| Documento | Descripción |
+|---|---|
+| `TASKS.md` | Hoja de ruta y evolución histórica del sistema |
+| `CHANGELOG.md` | Registro cronológico de modificaciones |
+| `RULES.md` | Constitución técnica y reglas de gobernanza |
+| `SAFE_CONTRIBUTING.md` | Directrices de seguridad para contribuciones |
+
+---
+
+# 11. Estado Actual
+
+### Versión estable
+`V7.x — STABLE`
+
+### Estado del proyecto
+- Arquitectura estabilizada
+- APIs semánticas congeladas
+- Sistema preparado para escalado funcional
+- Optimización activa de robustez y experiencia clínica
+
+---
+
+# 12. Líneas Futuras de Investigación
+
+Las siguientes etapas contemplan:
+
+- Sistemas semánticos híbridos
+- Integración de Transformers.js
+- IA generativa local
+- Resumen clínico automatizado
+- Modelos predictivos ejecutados íntegramente en cliente
+
+---
+
+# 13. Créditos y Dirección del Proyecto
+
+### Autor del Proyecto
+**Francisco Javier Alonso Fondón**  
+Técnico Superior en Administración de Sistemas Informáticos en Red (ASIR)
+
+### Coordinación Técnica y Clínica
+**Ignacio Martínez Soriano**  
+Jefe de Sección de Análisis de Datos  
+Hospital Universitario Rafael Méndez — Lorca (Murcia)
+
+---
+
+# 14. Aviso de Seguridad y Privacidad
+
+⚠️ Este repositorio y su despliegue asociado son públicos.
+
+Queda estrictamente prohibida la utilización o carga de datos clínicos reales.
+
+Todos los datasets incluidos en el proyecto son sintéticos, anonimizados o generados exclusivamente con fines de validación técnica y demostración.
