@@ -121,11 +121,39 @@ export default function Evolution({ onBack }: EvolutionProps) {
       color: 'emerald'
     },
     {
-      date: '15 de Mayo, 2026 (Actual)',
+      date: '15 de Mayo, 2026',
       title: 'V6.2.2: Auditoría Integral & Estabilidad',
       description: 'Certificación total del sistema tras auditoría masiva. Optimización extrema de memoria (OOM Fix), hardening de la interfaz y unificación de la arquitectura de normalización bajo estándares industriales.',
       icon: <Zap className="text-blue-500" />,
       color: 'blue'
+    },
+    {
+      date: '15 de Mayo, 2026',
+      title: 'V6.5.0: Biblioteca Canónica & Edición Estructural',
+      description: 'El Admin Studio madura con la integración de cabeceras oficiales (MIR, OBS, ALG), edición de estructuras en tiempo real (añadir/eliminar secciones y grupos) y reingeniería háptica del Drag-and-Drop.',
+      icon: <Code className="text-purple-500" />,
+      color: 'purple'
+    },
+    {
+      date: '19 de Mayo, 2026',
+      title: 'V7.0.0-STABLE: QA General y Hito de Estabilidad',
+      description: 'Publicación oficial estable de Queryclin. Auditoría de control de calidad final con 10 grandes bloques certificados, desambiguación en ingestas erráticas por columnas duplicadas y congelación del visor HCE.',
+      icon: <Shield className="text-indigo-500" />,
+      color: 'indigo'
+    },
+    {
+      date: '21 de Mayo, 2026',
+      title: 'V7.1.0-STABLE: Tokenizador N-grams Context-Aware',
+      description: 'Implementación del escudo de negaciones contextual por N-grams (ventana de 3 términos) en texto libre y refactorización ontológica del mapper en redes de sinónimos exactas y jerárquicas.',
+      icon: <Microscope className="text-emerald-500" />,
+      color: 'emerald'
+    },
+    {
+      date: '25 de Mayo, 2026 (Actual)',
+      title: 'V7.2.2-STABLE: Frases Exactas & Modo Oscuro PWA',
+      description: 'Llegada de la versión estable definitiva. Soporte de búsqueda por frase exacta entre comillas con filtrado post-BM25 masivo, centralización del versionado (SSOT), tematización completa en modo oscuro y favicon de identidad visual.',
+      icon: <Zap className="text-orange-500" />,
+      color: 'orange'
     }
   ];
 

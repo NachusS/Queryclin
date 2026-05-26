@@ -41,4 +41,4 @@ Este documento contiene las directrices fundamentales e inviolables para el desa
 - **Mantenimiento:** Es obligatorio mantener actualizados estos valores tras cada despliegue o cambio significativo en el módulo correspondiente.
 
 ---
-*Gobernanza Queryclin - V7.2.1*
+*Gobernanza Queryclin - V7.2.2*

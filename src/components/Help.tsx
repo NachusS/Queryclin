@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Search, Shield, Zap, FileText, Hospital, Users } from 'lucide-react';
+import { ArrowLeft, Search, Shield, Zap, FileText, Hospital, Users, Brain, Layout } from 'lucide-react';
 import { SYSTEM_VERSION } from '../core/version';
 
 interface HelpProps {
@@ -41,13 +41,55 @@ export default function Help({ onBack }: HelpProps) {
               Busca registros que contengan cualquiera de los términos (ej: "Disnea OR Tos").
             </li>
             <li className="flex gap-2">
-              <span className="text-[var(--accent-clinical)] font-mono font-bold">NOT / - :</span> 
+              <span className="text-[var(--accent-clinical)] font-mono font-bold">NOT / -:</span> 
               Excluye términos de la búsqueda (ej: "Dolor -Cabeza").
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[var(--accent-clinical)] font-mono font-bold">"..." :</span> 
+              Búsqueda por frase exacta literal (ej: `"infarto miocardio"` o `"insuficiencia renal"`).
             </li>
             <li className="flex gap-2">
               <span className="text-[var(--accent-clinical)] font-mono font-bold">Abrev:</span> 
               Indexación optimizada para pH, O2, Na, K, etc.
             </li>
+          </ul>
+        </section>
+
+        {/* Inteligencia Semántica */}
+        <section className="bg-[var(--glass-bg)] p-8 rounded-3xl border border-[var(--border-clinical)]">
+          <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mb-6">
+            <Brain size={24} />
+          </div>
+          <h2 className="text-xl font-bold mb-4">Inteligencia Semántica</h2>
+          <ul className="space-y-3 text-[var(--text-secondary)] text-sm">
+            <li className="flex gap-2">
+              <span className="text-[var(--accent-clinical)] font-bold">Sinónimos:</span>
+              Expansión terminológica bidireccional y jerárquica (ej: "HTA" expande a "Hipertensión Arterial").
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[var(--accent-clinical)] font-bold">Negation Shielding:</span>
+              Protección inteligente ante negaciones en texto libre (ej: "sin disnea" o "no refiere dolor" no arrojan falsos positivos).
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[var(--accent-clinical)] font-bold">Relevancia BM25:</span>
+              Algoritmo de scoring probabilístico con boosts clínicos para ordenar resultados por relevancia diagnóstica.
+            </li>
+          </ul>
+        </section>
+
+        {/* Admin Studio */}
+        <section className="bg-[var(--glass-bg)] p-8 rounded-3xl border border-[var(--border-clinical)]">
+          <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-500 mb-6">
+            <Layout size={24} />
+          </div>
+          <h2 className="text-xl font-bold mb-4">Queryclin Admin Studio</h2>
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-4">
+            Entorno de diseño clínico declarativo orientado a la gobernanza estructural:
+          </p>
+          <ul className="space-y-2 text-[var(--text-secondary)] text-sm">
+            <li>✓ Interfaz visual Drag-and-Drop para diseñar formularios y taxonomías.</li>
+            <li>✓ Plantillas preconstruidas basadas en modelos oficiales (OBS, MIR, ALG).</li>
+            <li>✓ Sincronización y versionado dinámico del esquema clínico en IndexedDB.</li>
           </ul>
         </section>
 
